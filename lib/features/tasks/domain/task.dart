@@ -1,3 +1,21 @@
+enum TaskRecurrence { none, daily, weekly, monthly }
+
+extension TaskRecurrenceX on TaskRecurrence {
+  String get label => switch (this) {
+        TaskRecurrence.none => 'Does not repeat',
+        TaskRecurrence.daily => 'Daily',
+        TaskRecurrence.weekly => 'Weekly',
+        TaskRecurrence.monthly => 'Monthly',
+      };
+
+  static TaskRecurrence fromStorage(String? value) {
+    return TaskRecurrence.values.firstWhere(
+      (TaskRecurrence item) => item.name == value,
+      orElse: () => TaskRecurrence.none,
+    );
+  }
+}
+
 class Task {
   const Task({
     required this.id,
@@ -10,6 +28,8 @@ class Task {
     this.labels = const <String>[],
     this.parentId,
     this.isRecurring = false,
+    this.recurrence = TaskRecurrence.none,
+    this.reminderAt,
     this.createdAt,
     this.updatedAt,
   });
@@ -24,6 +44,8 @@ class Task {
   final List<String> labels;
   final String? parentId;
   final bool isRecurring;
+  final TaskRecurrence recurrence;
+  final DateTime? reminderAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -38,9 +60,12 @@ class Task {
     List<String>? labels,
     String? parentId,
     bool? isRecurring,
+    TaskRecurrence? recurrence,
+    DateTime? reminderAt,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool clearDueDate = false,
+    bool clearReminder = false,
   }) {
     return Task(
       id: id ?? this.id,
@@ -53,6 +78,8 @@ class Task {
       labels: labels ?? this.labels,
       parentId: parentId ?? this.parentId,
       isRecurring: isRecurring ?? this.isRecurring,
+      recurrence: recurrence ?? this.recurrence,
+      reminderAt: clearReminder ? null : reminderAt ?? this.reminderAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

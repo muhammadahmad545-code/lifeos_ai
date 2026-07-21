@@ -713,6 +713,29 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _recurrenceMeta = const VerificationMeta(
+    'recurrence',
+  );
+  @override
+  late final GeneratedColumn<String> recurrence = GeneratedColumn<String>(
+    'recurrence',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('none'),
+  );
+  static const VerificationMeta _reminderAtMeta = const VerificationMeta(
+    'reminderAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> reminderAt = GeneratedColumn<DateTime>(
+    'reminder_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -748,6 +771,8 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     labels,
     parentId,
     isRecurring,
+    recurrence,
+    reminderAt,
     createdAt,
     updatedAt,
   ];
@@ -841,6 +866,18 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
         ),
       );
     }
+    if (data.containsKey('recurrence')) {
+      context.handle(
+        _recurrenceMeta,
+        recurrence.isAcceptableOrUnknown(data['recurrence']!, _recurrenceMeta),
+      );
+    }
+    if (data.containsKey('reminder_at')) {
+      context.handle(
+        _reminderAtMeta,
+        reminderAt.isAcceptableOrUnknown(data['reminder_at']!, _reminderAtMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -910,6 +947,14 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_recurring'],
       )!,
+      recurrence: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recurrence'],
+      )!,
+      reminderAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}reminder_at'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -939,6 +984,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
   final String labels;
   final String? parentId;
   final bool isRecurring;
+  final String recurrence;
+  final DateTime? reminderAt;
   final DateTime createdAt;
   final DateTime updatedAt;
   const TaskRow({
@@ -953,6 +1000,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     required this.labels,
     this.parentId,
     required this.isRecurring,
+    required this.recurrence,
+    this.reminderAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -978,6 +1027,10 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       map['parent_id'] = Variable<String>(parentId);
     }
     map['is_recurring'] = Variable<bool>(isRecurring);
+    map['recurrence'] = Variable<String>(recurrence);
+    if (!nullToAbsent || reminderAt != null) {
+      map['reminder_at'] = Variable<DateTime>(reminderAt);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -1004,6 +1057,10 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ? const Value.absent()
           : Value(parentId),
       isRecurring: Value(isRecurring),
+      recurrence: Value(recurrence),
+      reminderAt: reminderAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderAt),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -1026,6 +1083,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       labels: serializer.fromJson<String>(json['labels']),
       parentId: serializer.fromJson<String?>(json['parentId']),
       isRecurring: serializer.fromJson<bool>(json['isRecurring']),
+      recurrence: serializer.fromJson<String>(json['recurrence']),
+      reminderAt: serializer.fromJson<DateTime?>(json['reminderAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -1045,6 +1104,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       'labels': serializer.toJson<String>(labels),
       'parentId': serializer.toJson<String?>(parentId),
       'isRecurring': serializer.toJson<bool>(isRecurring),
+      'recurrence': serializer.toJson<String>(recurrence),
+      'reminderAt': serializer.toJson<DateTime?>(reminderAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -1062,6 +1123,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     String? labels,
     Value<String?> parentId = const Value.absent(),
     bool? isRecurring,
+    String? recurrence,
+    Value<DateTime?> reminderAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => TaskRow(
@@ -1076,6 +1139,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     labels: labels ?? this.labels,
     parentId: parentId.present ? parentId.value : this.parentId,
     isRecurring: isRecurring ?? this.isRecurring,
+    recurrence: recurrence ?? this.recurrence,
+    reminderAt: reminderAt.present ? reminderAt.value : this.reminderAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -1098,6 +1163,12 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       isRecurring: data.isRecurring.present
           ? data.isRecurring.value
           : this.isRecurring,
+      recurrence: data.recurrence.present
+          ? data.recurrence.value
+          : this.recurrence,
+      reminderAt: data.reminderAt.present
+          ? data.reminderAt.value
+          : this.reminderAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1117,6 +1188,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ..write('labels: $labels, ')
           ..write('parentId: $parentId, ')
           ..write('isRecurring: $isRecurring, ')
+          ..write('recurrence: $recurrence, ')
+          ..write('reminderAt: $reminderAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1136,6 +1209,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     labels,
     parentId,
     isRecurring,
+    recurrence,
+    reminderAt,
     createdAt,
     updatedAt,
   );
@@ -1154,6 +1229,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           other.labels == this.labels &&
           other.parentId == this.parentId &&
           other.isRecurring == this.isRecurring &&
+          other.recurrence == this.recurrence &&
+          other.reminderAt == this.reminderAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1170,6 +1247,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
   final Value<String> labels;
   final Value<String?> parentId;
   final Value<bool> isRecurring;
+  final Value<String> recurrence;
+  final Value<DateTime?> reminderAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -1185,6 +1264,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.labels = const Value.absent(),
     this.parentId = const Value.absent(),
     this.isRecurring = const Value.absent(),
+    this.recurrence = const Value.absent(),
+    this.reminderAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1201,6 +1282,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.labels = const Value.absent(),
     this.parentId = const Value.absent(),
     this.isRecurring = const Value.absent(),
+    this.recurrence = const Value.absent(),
+    this.reminderAt = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -1221,6 +1304,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Expression<String>? labels,
     Expression<String>? parentId,
     Expression<bool>? isRecurring,
+    Expression<String>? recurrence,
+    Expression<DateTime>? reminderAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -1237,6 +1322,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       if (labels != null) 'labels': labels,
       if (parentId != null) 'parent_id': parentId,
       if (isRecurring != null) 'is_recurring': isRecurring,
+      if (recurrence != null) 'recurrence': recurrence,
+      if (reminderAt != null) 'reminder_at': reminderAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -1255,6 +1342,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Value<String>? labels,
     Value<String?>? parentId,
     Value<bool>? isRecurring,
+    Value<String>? recurrence,
+    Value<DateTime?>? reminderAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -1271,6 +1360,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       labels: labels ?? this.labels,
       parentId: parentId ?? this.parentId,
       isRecurring: isRecurring ?? this.isRecurring,
+      recurrence: recurrence ?? this.recurrence,
+      reminderAt: reminderAt ?? this.reminderAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -1313,6 +1404,12 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     if (isRecurring.present) {
       map['is_recurring'] = Variable<bool>(isRecurring.value);
     }
+    if (recurrence.present) {
+      map['recurrence'] = Variable<String>(recurrence.value);
+    }
+    if (reminderAt.present) {
+      map['reminder_at'] = Variable<DateTime>(reminderAt.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1339,6 +1436,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
           ..write('labels: $labels, ')
           ..write('parentId: $parentId, ')
           ..write('isRecurring: $isRecurring, ')
+          ..write('recurrence: $recurrence, ')
+          ..write('reminderAt: $reminderAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -8201,6 +8300,8 @@ typedef $$TasksTableCreateCompanionBuilder =
       Value<String> labels,
       Value<String?> parentId,
       Value<bool> isRecurring,
+      Value<String> recurrence,
+      Value<DateTime?> reminderAt,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -8218,6 +8319,8 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<String> labels,
       Value<String?> parentId,
       Value<bool> isRecurring,
+      Value<String> recurrence,
+      Value<DateTime?> reminderAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -8283,6 +8386,16 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
 
   ColumnFilters<bool> get isRecurring => $composableBuilder(
     column: $table.isRecurring,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recurrence => $composableBuilder(
+    column: $table.recurrence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get reminderAt => $composableBuilder(
+    column: $table.reminderAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8361,6 +8474,16 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get recurrence => $composableBuilder(
+    column: $table.recurrence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get reminderAt => $composableBuilder(
+    column: $table.reminderAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -8420,6 +8543,16 @@ class $$TasksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get recurrence => $composableBuilder(
+    column: $table.recurrence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get reminderAt => $composableBuilder(
+    column: $table.reminderAt,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -8466,6 +8599,8 @@ class $$TasksTableTableManager
                 Value<String> labels = const Value.absent(),
                 Value<String?> parentId = const Value.absent(),
                 Value<bool> isRecurring = const Value.absent(),
+                Value<String> recurrence = const Value.absent(),
+                Value<DateTime?> reminderAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -8481,6 +8616,8 @@ class $$TasksTableTableManager
                 labels: labels,
                 parentId: parentId,
                 isRecurring: isRecurring,
+                recurrence: recurrence,
+                reminderAt: reminderAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -8498,6 +8635,8 @@ class $$TasksTableTableManager
                 Value<String> labels = const Value.absent(),
                 Value<String?> parentId = const Value.absent(),
                 Value<bool> isRecurring = const Value.absent(),
+                Value<String> recurrence = const Value.absent(),
+                Value<DateTime?> reminderAt = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -8513,6 +8652,8 @@ class $$TasksTableTableManager
                 labels: labels,
                 parentId: parentId,
                 isRecurring: isRecurring,
+                recurrence: recurrence,
+                reminderAt: reminderAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

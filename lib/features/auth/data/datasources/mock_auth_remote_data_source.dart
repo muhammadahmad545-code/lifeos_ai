@@ -4,7 +4,7 @@ import 'auth_remote_data_source.dart';
 class MockAuthRemoteDataSource implements AuthRemoteDataSource {
   @override
   Future<AuthUser> signInWithApple() async {
-    return const AuthUser(id: 'apple_user', email: 'user@icloud.com', displayName: 'Apple User');
+    throw UnsupportedError('Mock social sign-in is disabled. Use real SocialAuthService.');
   }
 
   @override
@@ -14,7 +14,7 @@ class MockAuthRemoteDataSource implements AuthRemoteDataSource {
 
   @override
   Future<AuthUser> signInWithGoogle() async {
-    return const AuthUser(id: 'google_user', email: 'user@gmail.com', displayName: 'Google User');
+    throw UnsupportedError('Mock social sign-in is disabled. Use real SocialAuthService.');
   }
 
   @override
@@ -24,7 +24,7 @@ class MockAuthRemoteDataSource implements AuthRemoteDataSource {
   Future<void> enableTwoFactor() async {}
 
   @override
-  Future<void> sendPasswordReset({required String email}) async {}
+  Future<String> sendPasswordReset({required String email}) async => '000000';
 
   @override
   Future<void> verifyOtp({required String code}) async {}

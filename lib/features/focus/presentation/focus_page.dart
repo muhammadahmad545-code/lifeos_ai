@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
 
 import '../../../core/providers/feature_providers.dart';
 import '../../../core/providers/providers.dart';
@@ -9,7 +10,27 @@ import '../../../shared/widgets/premium_card.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../domain/focus_session.dart';
 
-const List<int> _presetMinutes = <int>[15, 25, 45, 60];
+enum _FocusMode { pomodoro, deepWork, shortBreak }
+
+extension on _FocusMode {
+  String get label => switch (this) {
+        _FocusMode.pomodoro => 'Pomodoro',
+        _FocusMode.deepWork => 'Deep Work',
+        _FocusMode.shortBreak => 'Short Break',
+      };
+
+  int get defaultMinutes => switch (this) {
+        _FocusMode.pomodoro => 25,
+        _FocusMode.deepWork => 50,
+        _FocusMode.shortBreak => 5,
+      };
+
+  String get storageName => switch (this) {
+        _FocusMode.pomodoro => 'pomodoro',
+        _FocusMode.deepWork => 'deep_work',
+        _FocusMode.shortBreak => 'short_break',
+      };
+}
 
 class FocusPage extends ConsumerStatefulWidget {
   const FocusPage({super.key});
@@ -19,18 +40,33 @@ class FocusPage extends ConsumerStatefulWidget {
 }
 
 class _FocusPageState extends ConsumerState<FocusPage> {
+  _FocusMode _mode = _FocusMode.pomodoro;
   int _durationMinutes = 25;
   int _remainingSeconds = 25 * 60;
   bool _isRunning = false;
+  bool _ambientOn = false;
   DateTime? _startedAt;
   Timer? _timer;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   String? get _userId => ref.read(authSessionProvider).valueOrNull?.id;
 
   @override
   void dispose() {
     _timer?.cancel();
+    _audioPlayer.dispose();
     super.dispose();
+  }
+
+  void _selectMode(_FocusMode mode) {
+    if (_isRunning) {
+      return;
+    }
+    setState(() {
+      _mode = mode;
+      _durationMinutes = mode.defaultMinutes;
+      _remainingSeconds = mode.defaultMinutes * 60;
+    });
   }
 
   void _selectDuration(int minutes) {
@@ -43,12 +79,37 @@ class _FocusPageState extends ConsumerState<FocusPage> {
     });
   }
 
+  Future<void> _setAmbient(bool enabled) async {
+    setState(() => _ambientOn = enabled);
+    if (!enabled) {
+      await _audioPlayer.stop();
+      return;
+    }
+    try {
+      // Soft rain loop (public domain sample). Requires internet the first time.
+      await _audioPlayer.setUrl('https://cdn.pixabay.com/download/audio/2022/03/15/audio_c9a4a1d834.mp3');
+      await _audioPlayer.setLoopMode(LoopMode.one);
+      await _audioPlayer.setVolume(0.35);
+      await _audioPlayer.play();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _ambientOn = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ambient sound needs internet. Timer still works offline.')),
+        );
+      }
+    }
+  }
+
   void _start() {
     if (_isRunning) {
       return;
     }
     _startedAt ??= DateTime.now();
     setState(() => _isRunning = true);
+    if (_ambientOn && !_audioPlayer.playing) {
+      _audioPlayer.play();
+    }
     _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
       if (_remainingSeconds <= 1) {
         timer.cancel();
@@ -65,6 +126,7 @@ class _FocusPageState extends ConsumerState<FocusPage> {
 
   void _pause() {
     _timer?.cancel();
+    _audioPlayer.pause();
     setState(() => _isRunning = false);
   }
 
@@ -81,6 +143,7 @@ class _FocusPageState extends ConsumerState<FocusPage> {
     final String? userId = _userId;
     final DateTime started = _startedAt ?? DateTime.now();
     _startedAt = null;
+    await _audioPlayer.stop();
     if (userId != null) {
       try {
         await ref.read(focusRepositoryProvider).saveSession(
@@ -89,18 +152,17 @@ class _FocusPageState extends ConsumerState<FocusPage> {
                 id: '',
                 durationMinutes: _durationMinutes,
                 completedMinutes: _durationMinutes,
+                mode: _mode.storageName,
                 completed: true,
                 startedAt: started,
                 endedAt: DateTime.now(),
               ),
             );
-      } catch (_) {
-        // Local persistence best-effort; the countdown UI already reflects completion.
-      }
+      } catch (_) {}
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Focus session complete! Great work.')),
+        SnackBar(content: Text('${_mode.label} session complete! Great work.')),
       );
       setState(() => _remainingSeconds = _durationMinutes * 60);
     }
@@ -121,8 +183,23 @@ class _FocusPageState extends ConsumerState<FocusPage> {
         children: <Widget>[
           Wrap(
             spacing: 8,
+            runSpacing: 8,
             alignment: WrapAlignment.center,
-            children: _presetMinutes
+            children: _FocusMode.values
+                .map(
+                  (_FocusMode mode) => ChoiceChip(
+                    label: Text(mode.label),
+                    selected: _mode == mode,
+                    onSelected: _isRunning ? null : (_) => _selectMode(mode),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            alignment: WrapAlignment.center,
+            children: <int>[15, 25, 45, 50, 60]
                 .map(
                   (int m) => ChoiceChip(
                     label: Text('$m min'),
@@ -132,7 +209,14 @@ class _FocusPageState extends ConsumerState<FocusPage> {
                 )
                 .toList(),
           ),
-          const SizedBox(height: 32),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Ambient focus sound'),
+            subtitle: const Text('Soft rain loop while you work'),
+            value: _ambientOn,
+            onChanged: _setAmbient,
+          ),
+          const SizedBox(height: 16),
           Center(
             child: SizedBox(
               width: 240,

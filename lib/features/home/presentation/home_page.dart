@@ -39,6 +39,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     ref.invalidate(watchHabitsProvider);
     ref.invalidate(watchJournalEntriesProvider);
     ref.invalidate(healthLogsProvider(HealthLogType.water));
+    ref.invalidate(weatherProvider);
     await Future<void>.delayed(const Duration(milliseconds: 300));
   }
 
@@ -156,6 +157,34 @@ class _HomePageState extends ConsumerState<HomePage> {
               title: _greeting(user?.displayName.split(' ').first ?? 'there'),
               subtitle: "Here's your day at a glance.",
             ),
+            const SizedBox(height: 16),
+            ref.watch(weatherProvider).when(
+                  data: (weather) => PremiumCard(
+                    child: Row(
+                      children: <Widget>[
+                        Icon(Icons.wb_cloudy_outlined, size: 36, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(weather.city, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                              Text(weather.summary),
+                              Text(
+                                'Wind ${weather.windKmh.round()} km/h${weather.isFallback ? ' · offline estimate' : ''}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  loading: () => const PremiumCard(
+                    child: SizedBox(height: 48, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+                  ),
+                  error: (_, _) => const SizedBox.shrink(),
+                ),
             const SizedBox(height: 16),
             PremiumCard(
               child: Column(

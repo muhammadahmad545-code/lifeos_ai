@@ -38,6 +38,7 @@ import '../../features/notifications/domain/notification_repository.dart';
 import '../../features/tasks/data/task_repository_impl.dart';
 import '../../features/tasks/domain/task.dart';
 import '../../features/tasks/domain/task_repository.dart';
+import '../services/backup_service.dart';
 import 'database_provider.dart';
 import 'providers.dart';
 
@@ -91,6 +92,18 @@ final assistantRepositoryProvider = Provider<AssistantRepository>((ref) {
 
 final lifeOsAiEngineProvider = Provider<LifeOsAiEngine>((ref) {
   return const LifeOsAiEngine();
+});
+
+final backupServiceProvider = Provider<BackupService>((ref) {
+  return BackupService(
+    taskRepository: ref.watch(taskRepositoryProvider),
+    noteRepository: ref.watch(noteRepositoryProvider),
+    calendarRepository: ref.watch(calendarRepositoryProvider),
+    habitRepository: ref.watch(habitRepositoryProvider),
+    journalRepository: ref.watch(journalRepositoryProvider),
+    expenseRepository: ref.watch(expenseRepositoryProvider),
+    goalRepository: ref.watch(goalRepositoryProvider),
+  );
 });
 
 String? _userId(Ref ref) {

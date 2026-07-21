@@ -40,6 +40,7 @@ class TaskRepositoryImpl implements TaskRepository {
   Future<Task> createTask(String userId, Task task) async {
     final DateTime now = DateTime.now();
     final String id = task.id.isEmpty ? IdGenerator.next() : task.id;
+    final bool recurring = task.recurrence != TaskRecurrence.none || task.isRecurring;
     await _db.into(_db.tasks).insert(
           TasksCompanion.insert(
             id: id,
@@ -52,7 +53,9 @@ class TaskRepositoryImpl implements TaskRepository {
             project: Value<String?>(task.project),
             labels: Value<String>(ListCodec.encode(task.labels)),
             parentId: Value<String?>(task.parentId),
-            isRecurring: Value<bool>(task.isRecurring),
+            isRecurring: Value<bool>(recurring),
+            recurrence: Value<String>(task.recurrence.name),
+            reminderAt: Value<DateTime?>(task.reminderAt),
             createdAt: now,
             updatedAt: now,
           ),
@@ -63,6 +66,7 @@ class TaskRepositoryImpl implements TaskRepository {
 
   @override
   Future<Task> updateTask(Task task) async {
+    final bool recurring = task.recurrence != TaskRecurrence.none || task.isRecurring;
     await (_db.update(_db.tasks)..where((Tasks tbl) => tbl.id.equals(task.id))).write(
           TasksCompanion(
             title: Value<String>(task.title),
@@ -73,7 +77,9 @@ class TaskRepositoryImpl implements TaskRepository {
             project: Value<String?>(task.project),
             labels: Value<String>(ListCodec.encode(task.labels)),
             parentId: Value<String?>(task.parentId),
-            isRecurring: Value<bool>(task.isRecurring),
+            isRecurring: Value<bool>(recurring),
+            recurrence: Value<String>(task.recurrence.name),
+            reminderAt: Value<DateTime?>(task.reminderAt),
             updatedAt: Value<DateTime>(DateTime.now()),
           ),
         );
@@ -88,12 +94,50 @@ class TaskRepositoryImpl implements TaskRepository {
 
   @override
   Future<void> markTaskComplete(String taskId, {required bool isCompleted}) async {
+    final TaskRow? existing = await (_db.select(_db.tasks)..where((Tasks tbl) => tbl.id.equals(taskId))).getSingleOrNull();
+    if (existing == null) {
+      return;
+    }
+
     await (_db.update(_db.tasks)..where((Tasks tbl) => tbl.id.equals(taskId))).write(
           TasksCompanion(
             isCompleted: Value<bool>(isCompleted),
             updatedAt: Value<DateTime>(DateTime.now()),
           ),
         );
+
+    if (isCompleted) {
+      final Task task = _map(existing);
+      final TaskRecurrence recurrence = task.recurrence == TaskRecurrence.none && task.isRecurring
+          ? TaskRecurrence.daily
+          : task.recurrence;
+      if (recurrence != TaskRecurrence.none) {
+        final DateTime base = task.dueDate ?? DateTime.now();
+        final DateTime nextDue = switch (recurrence) {
+          TaskRecurrence.daily => base.add(const Duration(days: 1)),
+          TaskRecurrence.weekly => base.add(const Duration(days: 7)),
+          TaskRecurrence.monthly => DateTime(base.year, base.month + 1, base.day, base.hour, base.minute),
+          TaskRecurrence.none => base,
+        };
+        DateTime? nextReminder;
+        if (task.reminderAt != null && task.dueDate != null) {
+          nextReminder = task.reminderAt!.add(nextDue.difference(task.dueDate!));
+        }
+        await createTask(
+          existing.userId,
+          task.copyWith(
+            id: IdGenerator.next(),
+            isCompleted: false,
+            dueDate: nextDue,
+            reminderAt: nextReminder,
+            recurrence: recurrence,
+            isRecurring: true,
+            updatedAt: DateTime.now(),
+            createdAt: DateTime.now(),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -124,7 +168,9 @@ class TaskRepositoryImpl implements TaskRepository {
       project: row.project,
       labels: ListCodec.decode(row.labels),
       parentId: row.parentId,
-      isRecurring: row.isRecurring,
+      isRecurring: row.isRecurring || row.recurrence != 'none',
+      recurrence: TaskRecurrenceX.fromStorage(row.recurrence),
+      reminderAt: row.reminderAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     );

@@ -5,6 +5,7 @@ import '../domain/auth_repository.dart';
 import '../domain/auth_user.dart';
 import '../services/biometric_service.dart';
 import '../services/session_store.dart';
+import '../services/social_auth_service.dart';
 import 'datasources/local_auth_remote_data_source.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
@@ -13,15 +14,18 @@ class AuthRepositoryImpl implements AuthRepository {
     required SessionStore sessionStore,
     required BiometricService biometricService,
     required SettingsService settingsService,
+    required SocialAuthService socialAuthService,
   })  : _localAuth = localAuth,
         _sessionStore = sessionStore,
         _biometricService = biometricService,
-        _settings = settingsService;
+        _settings = settingsService,
+        _socialAuth = socialAuthService;
 
   final LocalAuthRemoteDataSource _localAuth;
   final SessionStore _sessionStore;
   final BiometricService _biometricService;
   final SettingsService _settings;
+  final SocialAuthService _socialAuth;
 
   final StreamController<AuthUser?> _sessionController = StreamController<AuthUser?>.broadcast();
   AuthUser? _currentUser;
@@ -79,14 +83,28 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<AuthUser> signInWithGoogle() async {
-    final AuthUser user = await _localAuth.signInWithGoogle();
+    final SocialAuthProfile profile = await _socialAuth.signInWithGoogle();
+    final AuthUser user = await _localAuth.upsertSocialUser(
+      provider: profile.provider,
+      email: profile.email,
+      displayName: profile.displayName,
+      photoUrl: profile.photoUrl,
+      providerUserId: profile.providerUserId,
+    );
     await _setCurrentUser(user);
     return user;
   }
 
   @override
   Future<AuthUser> signInWithApple() async {
-    final AuthUser user = await _localAuth.signInWithApple();
+    final SocialAuthProfile profile = await _socialAuth.signInWithApple();
+    final AuthUser user = await _localAuth.upsertSocialUser(
+      provider: profile.provider,
+      email: profile.email,
+      displayName: profile.displayName,
+      photoUrl: profile.photoUrl,
+      providerUserId: profile.providerUserId,
+    );
     await _setCurrentUser(user);
     return user;
   }
@@ -104,17 +122,23 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<void> sendPasswordReset({required String email}) async {
-    await _localAuth.sendPasswordReset(email: email);
+  Future<String> sendPasswordReset({required String email}) async {
+    return _localAuth.sendPasswordReset(email: email);
   }
 
   @override
-  Future<void> resetPassword({required String email, required String newPassword}) async {
+  Future<void> resetPassword({
+    required String email,
+    required String newPassword,
+    required String code,
+  }) async {
+    await _localAuth.verifyResetCode(email: email, code: code);
     await _localAuth.resetPassword(email: email, newPassword: newPassword);
   }
 
   @override
   Future<void> signOut() async {
+    await _socialAuth.signOutGoogle();
     await _sessionStore.clear();
     await _settings.setCurrentUserId(null);
     _currentUser = null;

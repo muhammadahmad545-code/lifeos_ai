@@ -7,7 +7,7 @@ abstract class AuthRemoteDataSource {
 
   Future<AuthUser> signInWithApple();
 
-  Future<void> sendPasswordReset({required String email});
+  Future<String> sendPasswordReset({required String email});
 
   Future<void> verifyOtp({required String code});
 

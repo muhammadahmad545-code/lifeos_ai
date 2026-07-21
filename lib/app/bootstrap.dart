@@ -15,6 +15,7 @@ Future<void> bootstrapApp() async {
 
   final ProviderContainer container = ProviderContainer();
   await container.read(authRepositoryProvider).restoreSession();
+  await container.read(localNotificationServiceProvider).initialize();
 
   runApp(
     UncontrolledProviderScope(

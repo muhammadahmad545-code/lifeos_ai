@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/providers/feature_providers.dart';
 import '../../../core/providers/providers.dart';
 
 const List<Map<String, String>> _languages = <Map<String, String>>[
@@ -37,6 +38,7 @@ class SettingsPage extends ConsumerStatefulWidget {
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   late bool _notificationsEnabled;
   late String _language;
+  late final TextEditingController _cityController;
 
   @override
   void initState() {
@@ -44,6 +46,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final settings = ref.read(settingsServiceProvider);
     _notificationsEnabled = settings.notificationsEnabled;
     _language = settings.language;
+    _cityController = TextEditingController(text: settings.weatherCity);
+  }
+
+  @override
+  void dispose() {
+    _cityController.dispose();
+    super.dispose();
   }
 
   Future<void> _setNotifications(bool value) async {
@@ -94,6 +103,30 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ),
       ],
     );
+  }
+
+  Future<void> _exportBackup() async {
+    final String? userId = ref.read(authSessionProvider).valueOrNull?.id;
+    if (userId == null) {
+      return;
+    }
+    try {
+      await ref.read(backupServiceProvider).shareBackup(userId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Backup ready to share.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Backup failed: $error'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -154,6 +187,29 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               onChanged: _setLanguage,
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: TextField(
+              controller: _cityController,
+              decoration: InputDecoration(
+                labelText: 'Weather city',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.save_outlined),
+                  onPressed: () async {
+                    final String city = _cityController.text.trim();
+                    await ref.read(settingsServiceProvider).setWeatherCity(city);
+                    ref.invalidate(weatherProvider);
+                    if (!mounted) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      SnackBar(content: Text('Weather city set to $city')),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
           const _SectionLabel('Modules'),
           ..._moduleLinks.map(
             (_ModuleLink link) => ListTile(
@@ -181,6 +237,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             title: const Text('Admin dashboard'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.go('/admin'),
+          ),
+          const _SectionLabel('Backup'),
+          ListTile(
+            leading: const Icon(Icons.backup_outlined),
+            title: const Text('Export & share backup'),
+            subtitle: const Text('Save tasks, notes, habits, journal, expenses, goals'),
+            trailing: const Icon(Icons.ios_share_rounded),
+            onTap: _exportBackup,
           ),
           const _SectionLabel('About'),
           ListTile(

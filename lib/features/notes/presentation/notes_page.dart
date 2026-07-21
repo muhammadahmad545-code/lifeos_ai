@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/feature_providers.dart';
 import '../../../core/providers/providers.dart';
+import '../../../core/services/note_pdf_exporter.dart';
 import '../../../shared/widgets/empty_state_view.dart';
 import '../domain/note.dart';
 
@@ -67,6 +69,14 @@ class _NotesPageState extends ConsumerState<NotesPage> {
   Future<void> _delete(Note note) async {
     try {
       await ref.read(noteRepositoryProvider).deleteNote(note.id);
+    } catch (error) {
+      _showError(error);
+    }
+  }
+
+  Future<void> _exportPdf(Note note) async {
+    try {
+      await NotePdfExporter().shareNotePdf(note);
     } catch (error) {
       _showError(error);
     }
@@ -207,6 +217,8 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                                       _toggleFavorite(note);
                                     case 'archive':
                                       _toggleArchive(note);
+                                    case 'pdf':
+                                      _exportPdf(note);
                                     case 'delete':
                                       _delete(note);
                                   }
@@ -221,6 +233,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                                     value: 'archive',
                                     child: Text(note.isArchived ? 'Unarchive' : 'Archive'),
                                   ),
+                                  const PopupMenuItem<String>(value: 'pdf', child: Text('Export PDF')),
                                   const PopupMenuItem<String>(value: 'delete', child: Text('Delete')),
                                 ],
                                 icon: Icon(note.isFavorite ? Icons.favorite : Icons.more_vert, color: note.isFavorite ? Colors.red : null),
@@ -258,6 +271,7 @@ class _NoteEditorDialogState extends State<_NoteEditorDialog> {
   late final TextEditingController _contentController;
   late final TextEditingController _tagsController;
   late final TextEditingController _folderController;
+  bool _preview = false;
 
   @override
   void initState() {
@@ -309,8 +323,19 @@ class _NoteEditorDialogState extends State<_NoteEditorDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Text(isEditing ? 'Edit note' : 'New note', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 16),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(isEditing ? 'Edit note' : 'New note', style: Theme.of(context).textTheme.titleLarge),
+                  ),
+                  IconButton(
+                    tooltip: _preview ? 'Edit' : 'Markdown preview',
+                    onPressed: () => setState(() => _preview = !_preview),
+                    icon: Icon(_preview ? Icons.edit_outlined : Icons.visibility_outlined),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               TextField(
                 controller: _titleController,
                 autofocus: !isEditing,
@@ -318,15 +343,53 @@ class _NoteEditorDialogState extends State<_NoteEditorDialog> {
               ),
               const SizedBox(height: 12),
               Expanded(
-                child: TextField(
-                  controller: _contentController,
-                  decoration: const InputDecoration(labelText: 'Content', alignLabelWithHint: true),
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                ),
+                child: _preview
+                    ? Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Theme.of(context).dividerColor),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Markdown(data: _contentController.text.isEmpty ? '*Nothing to preview*' : _contentController.text),
+                      )
+                    : TextField(
+                        controller: _contentController,
+                        decoration: const InputDecoration(
+                          labelText: 'Markdown content',
+                          alignLabelWithHint: true,
+                          hintText: '# Heading\n- [ ] Checklist item\n**bold**',
+                        ),
+                        maxLines: null,
+                        expands: true,
+                        textAlignVertical: TextAlignVertical.top,
+                        onChanged: (_) => setState(() {}),
+                      ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: <Widget>[
+                  ActionChip(
+                    label: const Text('Checklist'),
+                    onPressed: () {
+                      final String next = _contentController.text.isEmpty
+                          ? '- [ ] New item'
+                          : '${_contentController.text}\n- [ ] New item';
+                      setState(() => _contentController.text = next);
+                    },
+                  ),
+                  ActionChip(
+                    label: const Text('Heading'),
+                    onPressed: () {
+                      final String next = _contentController.text.isEmpty
+                          ? '# Title'
+                          : '${_contentController.text}\n\n## Section';
+                      setState(() => _contentController.text = next);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               Row(
                 children: <Widget>[
                   Expanded(

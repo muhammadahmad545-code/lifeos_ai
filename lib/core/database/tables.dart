@@ -29,6 +29,8 @@ class Tasks extends Table {
   TextColumn get labels => text().withDefault(const Constant(''))();
   TextColumn get parentId => text().nullable()();
   BoolColumn get isRecurring => boolean().withDefault(const Constant(false))();
+  TextColumn get recurrence => text().withDefault(const Constant('none'))();
+  DateTimeColumn get reminderAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 

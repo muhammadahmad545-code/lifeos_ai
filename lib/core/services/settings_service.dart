@@ -14,6 +14,7 @@ class SettingsService {
   static const String _biometricKey = 'biometric_enabled';
   static const String _twoFactorKey = 'two_factor_enabled';
   static const String _currentUserIdKey = 'current_user_id';
+  static const String _weatherCityKey = 'weather_city';
 
   ThemeMode get themeMode {
     final String value = _box.get(_themeKey, defaultValue: 'system') as String;
@@ -78,5 +79,11 @@ class SettingsService {
     } else {
       await _box.put(_currentUserIdKey, userId);
     }
+  }
+
+  String get weatherCity => _box.get(_weatherCityKey, defaultValue: 'Lahore') as String;
+
+  Future<void> setWeatherCity(String city) async {
+    await _box.put(_weatherCityKey, city.trim().isEmpty ? 'Lahore' : city.trim());
   }
 }

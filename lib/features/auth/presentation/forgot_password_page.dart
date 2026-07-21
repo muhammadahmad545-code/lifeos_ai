@@ -36,7 +36,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
       return;
     }
     setState(() => _isRequesting = true);
-    final String? code = await ref.read(authControllerProvider.notifier).requestOtp(email);
+    final String? code = await ref.read(authControllerProvider.notifier).sendPasswordReset(email);
     setState(() {
       _isRequesting = false;
       if (code != null) {
@@ -46,8 +46,10 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
     if (!mounted) {
       return;
     }
-    if (code != null) {
-      _showSnack('Reset code sent: $code (local mode)');
+    if (code != null && code.isNotEmpty) {
+      _showSnack('Your reset code: $code');
+    } else if (code != null) {
+      _showSnack('Password reset email sent. Check your inbox.');
     } else {
       final String? error = ref.read(authControllerProvider).errorMessage;
       _showSnack(error ?? 'Could not send reset code.', isError: true);
@@ -55,10 +57,6 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
   }
 
   Future<void> _resetPassword() async {
-    if (_codeController.text.trim() != '123456') {
-      _showSnack('Invalid reset code.', isError: true);
-      return;
-    }
     if (_newPasswordController.text.length < 6) {
       _showSnack('New password must be at least 6 characters.', isError: true);
       return;
@@ -67,6 +65,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
     await authController.resetPassword(
       email: _emailController.text.trim(),
       newPassword: _newPasswordController.text,
+      code: _codeController.text.trim(),
     );
     if (!mounted) {
       return;

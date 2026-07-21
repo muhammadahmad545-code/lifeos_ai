@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:drift/drift.dart';
 
 import '../../../../core/database/app_database.dart';
@@ -58,28 +60,49 @@ class LocalAuthRemoteDataSource implements AuthRemoteDataSource {
 
   @override
   Future<AuthUser> signInWithGoogle() async {
-    return _socialSignIn(provider: 'google');
+    throw UnsupportedError('Use SocialAuthService + upsertSocialUser for Google sign-in.');
   }
 
   @override
   Future<AuthUser> signInWithApple() async {
-    return _socialSignIn(provider: 'apple');
+    throw UnsupportedError('Use SocialAuthService + upsertSocialUser for Apple sign-in.');
   }
 
-  Future<AuthUser> _socialSignIn({required String provider}) async {
-    final String email = '$provider.user@lifeos.local';
-    final UserRow? existing = await (_db.select(_db.users)..where((Users tbl) => tbl.email.equals(email))).getSingleOrNull();
+  /// Creates or updates a local user from a real Google/Apple identity.
+  Future<AuthUser> upsertSocialUser({
+    required String provider,
+    required String email,
+    required String displayName,
+    String? photoUrl,
+    required String providerUserId,
+  }) async {
+    final String normalized = email.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      throw StateError('Social sign-in did not return an email address.');
+    }
+
+    final UserRow? existing =
+        await (_db.select(_db.users)..where((Users tbl) => tbl.email.equals(normalized))).getSingleOrNull();
+
     if (existing != null) {
-      return _map(existing);
+      await (_db.update(_db.users)..where((Users tbl) => tbl.id.equals(existing.id))).write(
+            UsersCompanion(
+              displayName: Value<String>(displayName.trim().isEmpty ? existing.displayName : displayName.trim()),
+              photoUrl: Value<String?>(photoUrl ?? existing.photoUrl),
+            ),
+          );
+      final UserRow row = await (_db.select(_db.users)..where((Users tbl) => tbl.id.equals(existing.id))).getSingle();
+      return _map(row);
     }
 
     final String id = IdGenerator.next();
     await _db.into(_db.users).insert(
           UsersCompanion.insert(
             id: id,
-            email: email,
-            passwordHash: PasswordHasher.hash(IdGenerator.next()),
-            displayName: provider == 'google' ? 'Google User' : 'Apple User',
+            email: normalized,
+            passwordHash: PasswordHasher.hash('social:$provider:$providerUserId:${IdGenerator.next()}'),
+            displayName: displayName.trim().isEmpty ? normalized.split('@').first : displayName.trim(),
+            photoUrl: Value<String?>(photoUrl),
             createdAt: DateTime.now(),
           ),
         );
@@ -87,8 +110,13 @@ class LocalAuthRemoteDataSource implements AuthRemoteDataSource {
     return _map(row);
   }
 
+  String _generateOtp() {
+    final Random random = Random.secure();
+    return List<String>.generate(6, (_) => random.nextInt(10).toString()).join();
+  }
+
   @override
-  Future<void> sendPasswordReset({required String email}) async {
+  Future<String> sendPasswordReset({required String email}) async {
     final UserRow? row = await (_db.select(_db.users)..where((Users tbl) => tbl.email.equals(email.toLowerCase())))
         .getSingleOrNull();
     if (row == null) {
@@ -96,16 +124,17 @@ class LocalAuthRemoteDataSource implements AuthRemoteDataSource {
     }
 
     _pendingOtpEmail = row.email;
-    _pendingOtpCode = '123456';
+    _pendingOtpCode = _generateOtp();
     await (_db.update(_db.users)..where((Users tbl) => tbl.id.equals(row.id))).write(
           UsersCompanion(otpCode: Value<String>(_pendingOtpCode!)),
         );
+    return _pendingOtpCode!;
   }
 
   Future<String> requestOtp({required String email}) async {
     final String normalized = email.trim().toLowerCase();
     _pendingOtpEmail = normalized;
-    _pendingOtpCode = '123456';
+    _pendingOtpCode = _generateOtp();
 
     final UserRow? row = await (_db.select(_db.users)..where((Users tbl) => tbl.email.equals(normalized))).getSingleOrNull();
     if (row != null) {
@@ -124,10 +153,12 @@ class LocalAuthRemoteDataSource implements AuthRemoteDataSource {
   }
 
   Future<AuthUser> signInWithOtp({required String email, required String code}) async {
-    await requestOtp(email: email);
+    final String normalized = email.trim().toLowerCase();
+    if (_pendingOtpEmail != normalized) {
+      throw StateError('Request a new OTP code for this email first.');
+    }
     await verifyOtp(code: code);
 
-    final String normalized = email.trim().toLowerCase();
     UserRow? row = await (_db.select(_db.users)..where((Users tbl) => tbl.email.equals(normalized))).getSingleOrNull();
     if (row == null) {
       final String id = IdGenerator.next();
@@ -142,7 +173,16 @@ class LocalAuthRemoteDataSource implements AuthRemoteDataSource {
           );
       row = await (_db.select(_db.users)..where((Users tbl) => tbl.id.equals(id))).getSingle();
     }
+    _pendingOtpCode = null;
     return _map(row);
+  }
+
+  Future<void> verifyResetCode({required String email, required String code}) async {
+    final String normalized = email.trim().toLowerCase();
+    if (_pendingOtpEmail != normalized) {
+      throw StateError('Request a reset code for this email first.');
+    }
+    await verifyOtp(code: code);
   }
 
   @override

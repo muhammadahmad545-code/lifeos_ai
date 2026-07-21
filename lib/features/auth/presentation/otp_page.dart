@@ -91,7 +91,10 @@ class _OtpPageState extends ConsumerState<OtpPage> {
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 8),
-                    const Text('Enter your email, request a code, then verify to sign in instantly.'),
+                    const Text(
+                      'Enter your email, request a code, then verify. '
+                      'Until SMS/email delivery is connected, your code is shown on screen.',
+                    ),
                     const SizedBox(height: 20),
                     TextField(
                       controller: _emailController,

@@ -50,7 +50,10 @@ class AuthController extends StateNotifier<AuthState> {
       final user = await _repository.signInWithGoogle();
       state = state.copyWith(user: user, isLoading: false);
     } catch (error) {
-      state = state.copyWith(isLoading: false, errorMessage: 'Google sign-in failed.');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: error.toString().replaceFirst('Bad state: ', ''),
+      );
     }
   }
 
@@ -60,7 +63,10 @@ class AuthController extends StateNotifier<AuthState> {
       final user = await _repository.signInWithApple();
       state = state.copyWith(user: user, isLoading: false);
     } catch (error) {
-      state = state.copyWith(isLoading: false, errorMessage: 'Apple sign-in failed.');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: error.toString().replaceFirst('Bad state: ', ''),
+      );
     }
   }
 
@@ -83,20 +89,26 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> sendPasswordReset(String email) async {
+  Future<String?> sendPasswordReset(String email) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      await _repository.sendPasswordReset(email: email);
+      final String code = await _repository.sendPasswordReset(email: email);
       state = state.copyWith(isLoading: false);
+      return code;
     } catch (error) {
       state = state.copyWith(isLoading: false, errorMessage: error.toString().replaceFirst('Bad state: ', ''));
+      return null;
     }
   }
 
-  Future<void> resetPassword({required String email, required String newPassword}) async {
+  Future<void> resetPassword({
+    required String email,
+    required String newPassword,
+    required String code,
+  }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      await _repository.resetPassword(email: email, newPassword: newPassword);
+      await _repository.resetPassword(email: email, newPassword: newPassword, code: code);
       state = state.copyWith(isLoading: false);
     } catch (error) {
       state = state.copyWith(isLoading: false, errorMessage: error.toString().replaceFirst('Bad state: ', ''));

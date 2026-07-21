@@ -14,7 +14,10 @@ import '../../features/auth/services/biometric_service.dart';
 import '../../features/auth/services/local_auth_biometric_service.dart';
 import '../../features/auth/services/secure_session_store.dart';
 import '../../features/auth/services/session_store.dart';
+import '../../features/auth/services/social_auth_service.dart';
+import '../services/local_notification_service.dart';
 import '../services/settings_service.dart';
+import '../services/weather_service.dart';
 import 'database_provider.dart';
 
 final settingsBoxProvider = Provider<Box<dynamic>>((ref) {
@@ -48,6 +51,21 @@ final biometricServiceProvider = Provider<BiometricService>((ref) {
   return LocalAuthBiometricService();
 });
 
+final socialAuthServiceProvider = Provider<SocialAuthService>((ref) {
+  return SocialAuthService();
+});
+
+final weatherServiceProvider = Provider<WeatherService>((ref) => WeatherService());
+
+final localNotificationServiceProvider = Provider<LocalNotificationService>((ref) {
+  return LocalNotificationService();
+});
+
+final weatherProvider = FutureProvider.autoDispose<WeatherSnapshot>((ref) async {
+  final String city = ref.watch(settingsServiceProvider).weatherCity;
+  return ref.watch(weatherServiceProvider).fetchForCity(city);
+});
+
 final localAuthRemoteDataSourceProvider = Provider<LocalAuthRemoteDataSource>((ref) {
   return LocalAuthRemoteDataSource(ref.watch(appDatabaseProvider));
 });
@@ -58,6 +76,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
     sessionStore: ref.watch(sessionStoreProvider),
     biometricService: ref.watch(biometricServiceProvider),
     settingsService: ref.watch(settingsServiceProvider),
+    socialAuthService: ref.watch(socialAuthServiceProvider),
   );
 });
 

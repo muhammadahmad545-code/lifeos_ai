@@ -9,6 +9,8 @@ import '../domain/task.dart';
 
 enum _TaskFilter { all, active, done }
 
+enum _TaskView { list, board }
+
 class TasksPage extends ConsumerStatefulWidget {
   const TasksPage({super.key});
 
@@ -18,6 +20,7 @@ class TasksPage extends ConsumerStatefulWidget {
 
 class _TasksPageState extends ConsumerState<TasksPage> {
   _TaskFilter _filter = _TaskFilter.all;
+  _TaskView _view = _TaskView.list;
 
   String? get _userId => ref.read(authSessionProvider).valueOrNull?.id;
 
@@ -54,6 +57,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
     if (userId == null) {
       return;
     }
+    final bool isNew = task == null || task.id.isEmpty;
     final Task? result = await showModalBottomSheet<Task>(
       context: context,
       isScrollControlled: true,
@@ -63,10 +67,20 @@ class _TasksPageState extends ConsumerState<TasksPage> {
       return;
     }
     try {
-      if (task == null) {
-        await ref.read(taskRepositoryProvider).createTask(userId, result);
-      } else {
-        await ref.read(taskRepositoryProvider).updateTask(result);
+      final Task toSave = result.copyWith(
+        parentId: result.parentId ?? task?.parentId,
+      );
+      final Task saved = isNew
+          ? await ref.read(taskRepositoryProvider).createTask(userId, toSave)
+          : await ref.read(taskRepositoryProvider).updateTask(toSave.copyWith(id: task.id));
+      final DateTime? reminder = saved.reminderAt ?? saved.dueDate;
+      if (reminder != null && ref.read(settingsServiceProvider).notificationsEnabled) {
+        await ref.read(localNotificationServiceProvider).scheduleReminder(
+              id: saved.id.hashCode,
+              title: 'Task reminder',
+              body: saved.title,
+              when: reminder,
+            );
       }
     } catch (error) {
       _showError(error);
@@ -91,7 +105,18 @@ class _TasksPageState extends ConsumerState<TasksPage> {
     final AsyncValue<List<Task>> tasksAsync = ref.watch(watchTasksProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tasks')),
+      appBar: AppBar(
+        title: const Text('Tasks'),
+        actions: <Widget>[
+          IconButton(
+            tooltip: _view == _TaskView.list ? 'Board view' : 'List view',
+            onPressed: () => setState(() {
+              _view = _view == _TaskView.list ? _TaskView.board : _TaskView.list;
+            }),
+            icon: Icon(_view == _TaskView.list ? Icons.view_kanban_outlined : Icons.view_list_rounded),
+          ),
+        ],
+      ),
       body: tasksAsync.when(
         data: (List<Task> tasks) {
           final List<Task> filtered = switch (_filter) {
@@ -99,6 +124,8 @@ class _TasksPageState extends ConsumerState<TasksPage> {
             _TaskFilter.active => tasks.where((Task t) => !t.isCompleted).toList(),
             _TaskFilter.done => tasks.where((Task t) => t.isCompleted).toList(),
           };
+          final List<Task> roots = filtered.where((Task t) => t.parentId == null).toList();
+          List<Task> childrenOf(String id) => filtered.where((Task t) => t.parentId == id).toList();
 
           return Column(
             children: <Widget>[
@@ -132,82 +159,51 @@ class _TasksPageState extends ConsumerState<TasksPage> {
                         title: 'No tasks here',
                         message: 'Tap the + button to add your first task.',
                       )
-                    : ListView.builder(
+                    : _view == _TaskView.board
+                        ? _KanbanBoard(
+                            tasks: filtered,
+                            priorityColor: _priorityColor,
+                            onToggle: _toggle,
+                            onOpen: (Task task) => _openForm(task: task),
+                          )
+                        : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(12, 4, 12, 88),
-                        itemCount: filtered.length,
+                        itemCount: roots.length,
                         itemBuilder: (BuildContext context, int index) {
-                          final Task task = filtered[index];
-                          return Dismissible(
-                            key: ValueKey<String>(task.id),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.symmetric(horizontal: 20),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.error,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              margin: const EdgeInsets.symmetric(vertical: 6),
-                              child: const Icon(Icons.delete_outline, color: Colors.white),
-                            ),
-                            confirmDismiss: (_) async {
-                              return await showDialog<bool>(
-                                    context: context,
-                                    builder: (BuildContext context) => AlertDialog(
-                                      title: const Text('Delete task?'),
-                                      content: Text('"${task.title}" will be permanently removed.'),
-                                      actions: <Widget>[
-                                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                                        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
-                                      ],
-                                    ),
-                                  ) ??
-                                  false;
-                            },
-                            onDismissed: (_) => _delete(task),
-                            child: Card(
-                              margin: const EdgeInsets.symmetric(vertical: 6),
-                              child: ListTile(
-                                onTap: () => _openForm(task: task),
-                                leading: Checkbox(
-                                  value: task.isCompleted,
-                                  onChanged: (_) => _toggle(task),
-                                  shape: const CircleBorder(),
-                                ),
-                                title: Text(
-                                  task.title,
-                                  style: TextStyle(
-                                    decoration: task.isCompleted ? TextDecoration.lineThrough : null,
-                                    color: task.isCompleted ? Theme.of(context).disabledColor : null,
-                                    fontWeight: FontWeight.w600,
+                          final Task task = roots[index];
+                          final List<Task> children = childrenOf(task.id);
+                          return Column(
+                            children: <Widget>[
+                              _TaskListTile(
+                                task: task,
+                                priorityColor: _priorityColor(task.priority),
+                                onToggle: () => _toggle(task),
+                                onOpen: () => _openForm(task: task),
+                                onDelete: () => _delete(task),
+                                onAddSubtask: () => _openForm(
+                                  task: Task(
+                                    id: '',
+                                    title: '',
+                                    isCompleted: false,
+                                    parentId: task.id,
+                                    project: task.project,
+                                    priority: task.priority,
                                   ),
                                 ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    if (task.description != null && task.description!.isNotEmpty)
-                                      Text(task.description!, maxLines: 1, overflow: TextOverflow.ellipsis),
-                                    Wrap(
-                                      spacing: 6,
-                                      runSpacing: 4,
-                                      children: <Widget>[
-                                        if (task.dueDate != null)
-                                          _Tag(icon: Icons.schedule, label: DateFormat.MMMd().format(task.dueDate!)),
-                                        if (task.project != null && task.project!.isNotEmpty)
-                                          _Tag(icon: Icons.folder_outlined, label: task.project!),
-                                        for (final String label in task.labels) _Tag(icon: Icons.label_outline, label: label),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                trailing: Container(
-                                  width: 10,
-                                  height: 10,
-                                  decoration: BoxDecoration(color: _priorityColor(task.priority), shape: BoxShape.circle),
-                                ),
-                                isThreeLine: task.description != null && task.description!.isNotEmpty,
                               ),
-                            ),
+                              ...children.map(
+                                (Task child) => Padding(
+                                  padding: const EdgeInsets.only(left: 28),
+                                  child: _TaskListTile(
+                                    task: child,
+                                    priorityColor: _priorityColor(child.priority),
+                                    onToggle: () => _toggle(child),
+                                    onOpen: () => _openForm(task: child),
+                                    onDelete: () => _delete(child),
+                                  ),
+                                ),
+                              ),
+                            ],
                           );
                         },
                       ),
@@ -221,6 +217,211 @@ class _TasksPageState extends ConsumerState<TasksPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openForm(),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class _TaskListTile extends StatelessWidget {
+  const _TaskListTile({
+    required this.task,
+    required this.priorityColor,
+    required this.onToggle,
+    required this.onOpen,
+    required this.onDelete,
+    this.onAddSubtask,
+  });
+
+  final Task task;
+  final Color priorityColor;
+  final VoidCallback onToggle;
+  final VoidCallback onOpen;
+  final VoidCallback onDelete;
+  final VoidCallback? onAddSubtask;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dismissible(
+      key: ValueKey<String>(task.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.error,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        child: const Icon(Icons.delete_outline, color: Colors.white),
+      ),
+      confirmDismiss: (_) async {
+        return await showDialog<bool>(
+              context: context,
+              builder: (BuildContext context) => AlertDialog(
+                title: const Text('Delete task?'),
+                content: Text('"${task.title}" will be permanently removed.'),
+                actions: <Widget>[
+                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                  FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+                ],
+              ),
+            ) ??
+            false;
+      },
+      onDismissed: (_) => onDelete(),
+      child: Card(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        child: ListTile(
+          onTap: onOpen,
+          leading: Checkbox(
+            value: task.isCompleted,
+            onChanged: (_) => onToggle(),
+            shape: const CircleBorder(),
+          ),
+          title: Text(
+            task.title,
+            style: TextStyle(
+              decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+              color: task.isCompleted ? Theme.of(context).disabledColor : null,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              if (task.description != null && task.description!.isNotEmpty)
+                Text(task.description!, maxLines: 1, overflow: TextOverflow.ellipsis),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: <Widget>[
+                  if (task.dueDate != null) _Tag(icon: Icons.schedule, label: DateFormat.MMMd().format(task.dueDate!)),
+                  if (task.recurrence != TaskRecurrence.none) _Tag(icon: Icons.repeat, label: task.recurrence.label),
+                  if (task.project != null && task.project!.isNotEmpty) _Tag(icon: Icons.folder_outlined, label: task.project!),
+                  for (final String label in task.labels) _Tag(icon: Icons.label_outline, label: label),
+                ],
+              ),
+            ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (onAddSubtask != null)
+                IconButton(
+                  tooltip: 'Add subtask',
+                  icon: const Icon(Icons.subdirectory_arrow_right),
+                  onPressed: onAddSubtask,
+                ),
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(color: priorityColor, shape: BoxShape.circle),
+              ),
+            ],
+          ),
+          isThreeLine: task.description != null && task.description!.isNotEmpty,
+        ),
+      ),
+    );
+  }
+}
+
+class _KanbanBoard extends StatelessWidget {
+  const _KanbanBoard({
+    required this.tasks,
+    required this.priorityColor,
+    required this.onToggle,
+    required this.onOpen,
+  });
+
+  final List<Task> tasks;
+  final Color Function(TaskPriority) priorityColor;
+  final Future<void> Function(Task) onToggle;
+  final void Function(Task) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Task> todo = tasks
+        .where((Task t) => !t.isCompleted && (t.priority == TaskPriority.low || t.priority == TaskPriority.medium))
+        .toList();
+    final List<Task> doing = tasks
+        .where((Task t) => !t.isCompleted && (t.priority == TaskPriority.high || t.priority == TaskPriority.urgent))
+        .toList();
+    final List<Task> done = tasks.where((Task t) => t.isCompleted).toList();
+
+    return ListView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 88),
+      children: <Widget>[
+        _KanbanColumn(title: 'To Do', tasks: todo, color: Colors.blueGrey, priorityColor: priorityColor, onToggle: onToggle, onOpen: onOpen),
+        _KanbanColumn(title: 'Doing', tasks: doing, color: Colors.orange, priorityColor: priorityColor, onToggle: onToggle, onOpen: onOpen),
+        _KanbanColumn(title: 'Done', tasks: done, color: Colors.green, priorityColor: priorityColor, onToggle: onToggle, onOpen: onOpen),
+      ],
+    );
+  }
+}
+
+class _KanbanColumn extends StatelessWidget {
+  const _KanbanColumn({
+    required this.title,
+    required this.tasks,
+    required this.color,
+    required this.priorityColor,
+    required this.onToggle,
+    required this.onOpen,
+  });
+
+  final String title;
+  final List<Task> tasks;
+  final Color color;
+  final Color Function(TaskPriority) priorityColor;
+  final Future<void> Function(Task) onToggle;
+  final void Function(Task) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 280,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+              const SizedBox(width: 8),
+              Text('$title (${tasks.length})', style: const TextStyle(fontWeight: FontWeight.w800)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: ListView.builder(
+              itemCount: tasks.length,
+              itemBuilder: (BuildContext context, int index) {
+                final Task task = tasks[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    dense: true,
+                    onTap: () => onOpen(task),
+                    title: Text(task.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(task.priority.label),
+                    trailing: IconButton(
+                      icon: Icon(task.isCompleted ? Icons.check_circle : Icons.circle_outlined),
+                      color: priorityColor(task.priority),
+                      onPressed: () => onToggle(task),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -280,7 +481,9 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
   late final TextEditingController _projectController;
   late final TextEditingController _labelsController;
   late TaskPriority _priority;
+  late TaskRecurrence _recurrence;
   DateTime? _dueDate;
+  bool _remindMe = false;
 
   @override
   void initState() {
@@ -292,6 +495,8 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
     _labelsController = TextEditingController(text: task?.labels.join(', ') ?? '');
     _priority = task?.priority ?? TaskPriority.medium;
     _dueDate = task?.dueDate;
+    _recurrence = task?.recurrence ?? TaskRecurrence.none;
+    _remindMe = task?.reminderAt != null;
   }
 
   @override
@@ -326,6 +531,9 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
         .where((String e) => e.isNotEmpty)
         .toList();
 
+    final DateTime? reminderAt = _remindMe && _dueDate != null
+        ? _dueDate!.subtract(const Duration(hours: 1))
+        : null;
     final Task result = (widget.initial ?? Task(id: '', title: '', isCompleted: false)).copyWith(
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
@@ -334,6 +542,11 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
       labels: labels,
       dueDate: _dueDate,
       clearDueDate: _dueDate == null,
+      recurrence: _recurrence,
+      isRecurring: _recurrence != TaskRecurrence.none,
+      reminderAt: reminderAt,
+      clearReminder: reminderAt == null,
+      parentId: widget.initial?.parentId,
     );
     Navigator.of(context).pop(result);
   }
@@ -390,6 +603,25 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
                 if (_dueDate != null)
                   IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _dueDate = null)),
               ],
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<TaskRecurrence>(
+              initialValue: _recurrence,
+              decoration: const InputDecoration(labelText: 'Repeat'),
+              items: TaskRecurrence.values
+                  .map((TaskRecurrence value) => DropdownMenuItem<TaskRecurrence>(value: value, child: Text(value.label)))
+                  .toList(),
+              onChanged: (TaskRecurrence? value) {
+                if (value != null) {
+                  setState(() => _recurrence = value);
+                }
+              },
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Remind me 1 hour before due'),
+              value: _remindMe,
+              onChanged: _dueDate == null ? null : (bool value) => setState(() => _remindMe = value),
             ),
             const SizedBox(height: 12),
             TextField(

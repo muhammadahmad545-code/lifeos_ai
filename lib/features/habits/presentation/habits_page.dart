@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -90,11 +91,77 @@ class _HabitsPageState extends ConsumerState<HabitsPage> {
           if (habits.isEmpty) {
             return const EmptyStateView(title: 'No habits yet', message: 'Tap the + button to build your first habit.');
           }
+          final int unlocked = habits.where((Habit h) => h.level >= 2 || h.currentStreak >= 3).length;
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
-            itemCount: habits.length,
+            itemCount: habits.length + 1,
             itemBuilder: (BuildContext context, int index) {
-              final Habit habit = habits[index];
+              if (index == 0) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Text('Streak overview', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 180,
+                      child: BarChart(
+                        BarChartData(
+                          alignment: BarChartAlignment.spaceAround,
+                          maxY: (habits.map((Habit h) => h.currentStreak).fold<int>(1, (int a, int b) => a > b ? a : b) + 2)
+                              .toDouble(),
+                          titlesData: FlTitlesData(
+                            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                getTitlesWidget: (double value, TitleMeta meta) {
+                                  final int i = value.toInt();
+                                  if (i < 0 || i >= habits.length) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  final String label = habits[i].name;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Text(
+                                      label.length > 6 ? '${label.substring(0, 6)}…' : label,
+                                      style: const TextStyle(fontSize: 10),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          borderData: FlBorderData(show: false),
+                          gridData: const FlGridData(show: false),
+                          barGroups: List<BarChartGroupData>.generate(
+                            habits.length,
+                            (int i) => BarChartGroupData(
+                              x: i,
+                              barRods: <BarChartRodData>[
+                                BarChartRodData(
+                                  toY: habits[i].currentStreak.toDouble(),
+                                  width: 14,
+                                  borderRadius: BorderRadius.circular(6),
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Achievements unlocked: $unlocked · Keep streaks alive to level up.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                );
+              }
+              final Habit habit = habits[index - 1];
               final bool doneToday = _isDoneToday(habit);
               final double xpIntoLevel = (habit.xp % 100) / 100;
               return Card(
