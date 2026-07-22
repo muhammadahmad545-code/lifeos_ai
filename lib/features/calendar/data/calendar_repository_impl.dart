@@ -59,6 +59,8 @@ class CalendarRepositoryImpl implements CalendarRepository {
             location: Value<String?>(event.location),
             isAllDay: Value<bool>(event.isAllDay),
             isRecurring: Value<bool>(event.isRecurring),
+            isTimeBlock: Value<bool>(event.isTimeBlock),
+            color: Value<String?>(event.color),
             createdAt: event.createdAt ?? now,
           ),
         );
@@ -78,6 +80,8 @@ class CalendarRepositoryImpl implements CalendarRepository {
             location: Value<String?>(event.location),
             isAllDay: Value<bool>(event.isAllDay),
             isRecurring: Value<bool>(event.isRecurring),
+            isTimeBlock: Value<bool>(event.isTimeBlock),
+            color: Value<String?>(event.color),
           ),
         );
     final CalendarEventRow row =
@@ -100,6 +104,8 @@ class CalendarRepositoryImpl implements CalendarRepository {
       location: row.location,
       isAllDay: row.isAllDay,
       isRecurring: row.isRecurring,
+      isTimeBlock: row.isTimeBlock,
+      color: row.color,
       createdAt: row.createdAt,
     );
   }

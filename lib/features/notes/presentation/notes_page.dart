@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
@@ -13,6 +15,7 @@ import '../../../core/services/note_pdf_exporter.dart';
 import '../../../core/utils/media_path_helper.dart';
 import '../../../shared/widgets/empty_state_view.dart';
 import '../domain/note.dart';
+import '../domain/note_version.dart';
 import 'note_drawing_page.dart';
 
 class NotesPage extends ConsumerStatefulWidget {
@@ -89,6 +92,62 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     }
   }
 
+  Future<void> _showHistory(Note note) async {
+    final List<NoteVersion> versions = await ref.read(noteRepositoryProvider).getVersions(note.id);
+    if (!mounted) {
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (BuildContext context) => SafeArea(
+        child: versions.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('No previous versions yet. Edit and save this note to create history.'),
+              )
+            : ListView(
+                shrinkWrap: true,
+                children: <Widget>[
+                  const ListTile(
+                    title: Text('Version history'),
+                    subtitle: Text('Restore an earlier snapshot'),
+                  ),
+                  ...versions.map(
+                    (NoteVersion version) => ListTile(
+                      leading: const Icon(Icons.history),
+                      title: Text(version.title.isEmpty ? '(Untitled)' : version.title),
+                      subtitle: Text(
+                        '${DateFormat.yMMMd().add_jm().format(version.createdAt)}\n'
+                        '${version.content.isEmpty ? '(empty)' : version.content}',
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      isThreeLine: true,
+                      trailing: TextButton(
+                        onPressed: () async {
+                          try {
+                            await ref.read(noteRepositoryProvider).restoreVersion(note.id, version.id);
+                            if (!mounted) {
+                              return;
+                            }
+                            Navigator.of(this.context).pop();
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              const SnackBar(content: Text('Version restored')),
+                            );
+                          } catch (error) {
+                            _showError(error);
+                          }
+                        },
+                        child: const Text('Restore'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
   Future<void> _openEditor({Note? note}) async {
     final String? userId = _userId;
     if (userId == null) {
@@ -96,7 +155,10 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     }
     final Note? result = await showDialog<Note>(
       context: context,
-      builder: (BuildContext context) => _NoteEditorDialog(initial: note),
+      builder: (BuildContext context) => _NoteEditorDialog(
+        initial: note,
+        onOcrImage: (String path) => ref.read(ocrServiceProvider).extractText(path),
+      ),
     );
     if (result == null) {
       return;
@@ -224,6 +286,8 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                                       _toggleFavorite(note);
                                     case 'archive':
                                       _toggleArchive(note);
+                                    case 'history':
+                                      _showHistory(note);
                                     case 'pdf':
                                       _exportPdf(note);
                                     case 'delete':
@@ -240,6 +304,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                                     value: 'archive',
                                     child: Text(note.isArchived ? 'Unarchive' : 'Archive'),
                                   ),
+                                  const PopupMenuItem<String>(value: 'history', child: Text('Version history')),
                                   const PopupMenuItem<String>(value: 'pdf', child: Text('Export PDF')),
                                   const PopupMenuItem<String>(value: 'delete', child: Text('Delete')),
                                 ],
@@ -265,9 +330,10 @@ class _NotesPageState extends ConsumerState<NotesPage> {
 }
 
 class _NoteEditorDialog extends StatefulWidget {
-  const _NoteEditorDialog({this.initial});
+  const _NoteEditorDialog({this.initial, required this.onOcrImage});
 
   final Note? initial;
+  final Future<String> Function(String path) onOcrImage;
 
   @override
   State<_NoteEditorDialog> createState() => _NoteEditorDialogState();
@@ -282,6 +348,7 @@ class _NoteEditorDialogState extends State<_NoteEditorDialog> {
   final AudioPlayer _player = AudioPlayer();
   bool _preview = false;
   bool _recording = false;
+  bool _ocrBusy = false;
   String? _playingPath;
 
   @override
@@ -340,6 +407,32 @@ class _NoteEditorDialogState extends State<_NoteEditorDialog> {
     );
     if (path != null && path.isNotEmpty) {
       _appendLine('![Drawing]($path)');
+    }
+  }
+
+  Future<void> _scanText() async {
+    final XFile? picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 90);
+    if (picked == null) {
+      return;
+    }
+    setState(() => _ocrBusy = true);
+    try {
+      final String text = await widget.onOcrImage(picked.path);
+      if (text.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No text found in that image.')));
+        }
+        return;
+      }
+      _appendLine(text);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('OCR failed: $error')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _ocrBusy = false);
+      }
     }
   }
 
@@ -464,6 +557,13 @@ class _NoteEditorDialogState extends State<_NoteEditorDialog> {
                     avatar: const Icon(Icons.brush_outlined, size: 18),
                     label: const Text('Draw'),
                     onPressed: _openDrawing,
+                  ),
+                  ActionChip(
+                    avatar: _ocrBusy
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.document_scanner_outlined, size: 18),
+                    label: Text(_ocrBusy ? 'Scanning…' : 'OCR'),
+                    onPressed: _ocrBusy ? null : _scanText,
                   ),
                 ],
               ),

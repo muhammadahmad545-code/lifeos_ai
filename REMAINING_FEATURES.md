@@ -3,13 +3,10 @@
 Updated after latest build. ✅ working · 🟡 partial · ❌ not yet
 
 ## Done in this pass
-- ✅ Task templates (built-in + save custom from any task)
-- ✅ Expense pie chart by category
-- ✅ Receipt photo attach (camera / gallery)
-- ✅ Notes voice recording + playback
-- ✅ Notes drawing canvas (saved into note markdown)
-- ✅ Goals vision board (colors + optional image)
-- ✅ Notes PDF export, subtasks, recurring tasks, reminders (earlier)
+- ✅ Notes version history (auto-snapshot on edit, restore)
+- ✅ Calendar Day view + time blocking (hourly grid, colors)
+- ✅ On-device OCR (notes scan + receipt amount/category extract)
+- ✅ Task templates, expense charts/receipts, voice/draw notes, vision board (earlier)
 
 ## Still remaining
 
@@ -27,22 +24,22 @@ Updated after latest build. ✅ working · 🟡 partial · ❌ not yet
 | Offline AI over your data | ✅ |
 | Voice chat | ❌ |
 | Cloud LLM (ChatGPT/Gemini) | ❌ |
-| PDF summaries / OCR / email drafting API | ❌ |
+| PDF summaries / email drafting API | ❌ |
+| OCR | ✅ |
 
 ### Tasks / Notes / Calendar extras
 | Feature | Status |
 |---|---|
-| Subtasks + templates | ✅ |
+| Subtasks + templates + version history | ✅ |
 | Timeline, attachments, comments, collaboration | ❌ |
-| Drawing canvas, voice notes, PDF export | ✅ |
-| OCR, version history | ❌ |
-| Drag-drop calendar, invitations, external sync, time blocking | ❌ |
+| Drawing canvas, voice notes, PDF export, OCR | ✅ |
+| Drag-drop calendar, invitations, external sync | ❌ |
+| Time blocking | ✅ |
 
 ### Other modules
 | Feature | Status |
 |---|---|
-| Receipt photo attach | ✅ |
-| Receipt OCR scanner | ❌ |
+| Receipt photo + OCR extract | ✅ |
 | Vision board | ✅ |
 | HealthKit/Google Fit | ❌ |
 | Website blocking ready hooks | ❌ |
@@ -51,7 +48,7 @@ Updated after latest build. ✅ working · 🟡 partial · ❌ not yet
 | Full test suites | 🟡 basic unit tests |
 
 ## Next priority
-1. Notes version history
-2. Calendar time blocking
-3. Simple OCR / receipt text extract (on-device if possible)
-4. Firestore sync once Firebase is configured
+1. Firestore sync once Firebase is configured
+2. Task timeline / attachments
+3. Voice AI chat
+4. Push notifications (FCM) + Crashlytics

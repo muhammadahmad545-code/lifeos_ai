@@ -12,6 +12,7 @@ part 'app_database.g.dart';
     Users,
     Tasks,
     Notes,
+    NoteVersions,
     CalendarEvents,
     Habits,
     JournalEntries,
@@ -29,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -45,6 +46,11 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(expenses, expenses.receiptPath);
             await m.addColumn(goals, goals.visionImagePath);
             await m.addColumn(goals, goals.visionColor);
+          }
+          if (from < 4) {
+            await m.createTable(noteVersions);
+            await m.addColumn(calendarEvents, calendarEvents.isTimeBlock);
+            await m.addColumn(calendarEvents, calendarEvents.color);
           }
         },
       );

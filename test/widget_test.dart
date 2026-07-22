@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:lifeos_ai/core/services/receipt_text_parser.dart';
 import 'package:lifeos_ai/core/utils/password_hasher.dart';
 import 'package:lifeos_ai/core/utils/list_codec.dart';
 import 'package:lifeos_ai/features/assistant/domain/lifeos_ai_engine.dart';
@@ -28,5 +29,14 @@ void main() {
       ],
     );
     expect(reply.toLowerCase(), contains('ship release'));
+  });
+
+  test('ReceiptTextParser extracts amount and category hints', () {
+    final ReceiptParseResult result = ReceiptTextParser.parse(
+      'Blue Bottle Coffee\nLatte\nTotal \$12.50\nThank you',
+    );
+    expect(result.amount, 12.50);
+    expect(result.description, 'Blue Bottle Coffee');
+    expect(result.category, 'Food');
   });
 }

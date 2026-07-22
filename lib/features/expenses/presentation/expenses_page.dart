@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/providers/feature_providers.dart';
 import '../../../core/providers/providers.dart';
+import '../../../core/services/receipt_text_parser.dart';
 import '../../../core/utils/media_path_helper.dart';
 import '../../../shared/widgets/empty_state_view.dart';
 import '../../../shared/widgets/premium_card.dart';
@@ -378,23 +379,24 @@ class _TotalCard extends StatelessWidget {
   }
 }
 
-class _ExpenseFormSheet extends StatefulWidget {
+class _ExpenseFormSheet extends ConsumerStatefulWidget {
   const _ExpenseFormSheet({this.initial, required this.isIncome});
 
   final Expense? initial;
   final bool isIncome;
 
   @override
-  State<_ExpenseFormSheet> createState() => _ExpenseFormSheetState();
+  ConsumerState<_ExpenseFormSheet> createState() => _ExpenseFormSheetState();
 }
 
-class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
+class _ExpenseFormSheetState extends ConsumerState<_ExpenseFormSheet> {
   late final TextEditingController _descriptionController;
   late final TextEditingController _amountController;
   late String _category;
   late DateTime _date;
   late bool _isIncome;
   String? _receiptPath;
+  bool _scanning = false;
 
   @override
   void initState() {
@@ -408,7 +410,7 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
     _receiptPath = e?.receiptPath;
   }
 
-  Future<void> _pickReceipt(ImageSource source) async {
+  Future<void> _pickReceipt(ImageSource source, {required bool runOcr}) async {
     final XFile? picked = await ImagePicker().pickImage(source: source, imageQuality: 85);
     if (picked == null) {
       return;
@@ -418,7 +420,46 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
       folder: 'receipts',
       extension: 'jpg',
     );
-    setState(() => _receiptPath = copied.path);
+    setState(() {
+      _receiptPath = copied.path;
+      _isIncome = false;
+    });
+    if (!runOcr) {
+      return;
+    }
+    setState(() => _scanning = true);
+    try {
+      final ReceiptParseResult parsed = await ref.read(ocrServiceProvider).scanReceipt(copied.path);
+      if (!mounted) {
+        return;
+      }
+      if (parsed.description != null && _descriptionController.text.trim().isEmpty) {
+        _descriptionController.text = parsed.description!;
+      }
+      if (parsed.amount != null) {
+        _amountController.text = parsed.amount!.toStringAsFixed(2);
+      }
+      if (parsed.category != null && _expenseCategories.contains(parsed.category)) {
+        setState(() => _category = parsed.category!);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            parsed.rawText.isEmpty
+                ? 'No text found on receipt.'
+                : 'Scanned receipt${parsed.amount != null ? ' · \$${parsed.amount!.toStringAsFixed(2)}' : ''}',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('OCR failed: $error')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _scanning = false);
+      }
+    }
   }
 
   @override
@@ -509,12 +550,20 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
                 ),
                 const SizedBox(height: 8),
               ],
+              FilledButton.tonalIcon(
+                onPressed: _scanning ? null : () => _pickReceipt(ImageSource.camera, runOcr: true),
+                icon: _scanning
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.document_scanner_outlined),
+                label: Text(_scanning ? 'Scanning…' : 'Scan receipt (OCR)'),
+              ),
+              const SizedBox(height: 8),
               Row(
                 children: <Widget>[
                   Expanded(
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.photo_camera_outlined),
-                      onPressed: () => _pickReceipt(ImageSource.camera),
+                      onPressed: _scanning ? null : () => _pickReceipt(ImageSource.camera, runOcr: false),
                       label: const Text('Camera'),
                     ),
                   ),
@@ -522,8 +571,8 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
                   Expanded(
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.photo_library_outlined),
-                      onPressed: () => _pickReceipt(ImageSource.gallery),
-                      label: const Text('Gallery'),
+                      onPressed: _scanning ? null : () => _pickReceipt(ImageSource.gallery, runOcr: true),
+                      label: const Text('Gallery OCR'),
                     ),
                   ),
                   if (_receiptPath != null) ...<Widget>[

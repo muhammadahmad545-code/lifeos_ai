@@ -17,6 +17,7 @@ import '../../features/auth/services/session_store.dart';
 import '../../features/auth/services/social_auth_service.dart';
 import '../../features/tasks/data/task_template_store.dart';
 import '../services/local_notification_service.dart';
+import '../services/ocr_service.dart';
 import '../services/settings_service.dart';
 import '../services/weather_service.dart';
 import 'database_provider.dart';
@@ -61,6 +62,8 @@ final socialAuthServiceProvider = Provider<SocialAuthService>((ref) {
 });
 
 final weatherServiceProvider = Provider<WeatherService>((ref) => WeatherService());
+
+final ocrServiceProvider = Provider<OcrService>((ref) => OcrService());
 
 final localNotificationServiceProvider = Provider<LocalNotificationService>((ref) {
   return LocalNotificationService();

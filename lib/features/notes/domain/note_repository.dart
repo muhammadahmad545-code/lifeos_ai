@@ -1,4 +1,5 @@
 import 'note.dart';
+import 'note_version.dart';
 
 abstract class NoteRepository {
   Stream<List<Note>> watchNotes(String userId);
@@ -18,4 +19,8 @@ abstract class NoteRepository {
   Future<void> toggleFavorite(String noteId);
 
   Future<void> archiveNote(String noteId, {required bool archived});
+
+  Future<List<NoteVersion>> getVersions(String noteId);
+
+  Future<Note> restoreVersion(String noteId, String versionId);
 }

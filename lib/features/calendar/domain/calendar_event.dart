@@ -8,6 +8,8 @@ class CalendarEvent {
     this.location,
     this.isAllDay = false,
     this.isRecurring = false,
+    this.isTimeBlock = false,
+    this.color,
     this.createdAt,
   });
 
@@ -19,6 +21,8 @@ class CalendarEvent {
   final String? location;
   final bool isAllDay;
   final bool isRecurring;
+  final bool isTimeBlock;
+  final String? color;
   final DateTime? createdAt;
 
   CalendarEvent copyWith({
@@ -30,6 +34,8 @@ class CalendarEvent {
     String? location,
     bool? isAllDay,
     bool? isRecurring,
+    bool? isTimeBlock,
+    String? color,
     DateTime? createdAt,
   }) {
     return CalendarEvent(
@@ -41,6 +47,8 @@ class CalendarEvent {
       location: location ?? this.location,
       isAllDay: isAllDay ?? this.isAllDay,
       isRecurring: isRecurring ?? this.isRecurring,
+      isTimeBlock: isTimeBlock ?? this.isTimeBlock,
+      color: color ?? this.color,
       createdAt: createdAt ?? this.createdAt,
     );
   }

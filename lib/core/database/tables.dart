@@ -68,6 +68,20 @@ class CalendarEvents extends Table {
   TextColumn get location => text().nullable()();
   BoolColumn get isAllDay => boolean().withDefault(const Constant(false))();
   BoolColumn get isRecurring => boolean().withDefault(const Constant(false))();
+  BoolColumn get isTimeBlock => boolean().withDefault(const Constant(false))();
+  TextColumn get color => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@DataClassName('NoteVersionRow')
+class NoteVersions extends Table {
+  TextColumn get id => text()();
+  TextColumn get noteId => text()();
+  TextColumn get title => text()();
+  TextColumn get content => text()();
   DateTimeColumn get createdAt => dateTime()();
 
   @override

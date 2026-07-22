@@ -2146,6 +2146,358 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
   }
 }
 
+class $NoteVersionsTable extends NoteVersions
+    with TableInfo<$NoteVersionsTable, NoteVersionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NoteVersionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _noteIdMeta = const VerificationMeta('noteId');
+  @override
+  late final GeneratedColumn<String> noteId = GeneratedColumn<String>(
+    'note_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
+  );
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'content',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, noteId, title, content, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'note_versions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NoteVersionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('note_id')) {
+      context.handle(
+        _noteIdMeta,
+        noteId.isAcceptableOrUnknown(data['note_id']!, _noteIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_noteIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  NoteVersionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NoteVersionRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      noteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      content: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $NoteVersionsTable createAlias(String alias) {
+    return $NoteVersionsTable(attachedDatabase, alias);
+  }
+}
+
+class NoteVersionRow extends DataClass implements Insertable<NoteVersionRow> {
+  final String id;
+  final String noteId;
+  final String title;
+  final String content;
+  final DateTime createdAt;
+  const NoteVersionRow({
+    required this.id,
+    required this.noteId,
+    required this.title,
+    required this.content,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['note_id'] = Variable<String>(noteId);
+    map['title'] = Variable<String>(title);
+    map['content'] = Variable<String>(content);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  NoteVersionsCompanion toCompanion(bool nullToAbsent) {
+    return NoteVersionsCompanion(
+      id: Value(id),
+      noteId: Value(noteId),
+      title: Value(title),
+      content: Value(content),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory NoteVersionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NoteVersionRow(
+      id: serializer.fromJson<String>(json['id']),
+      noteId: serializer.fromJson<String>(json['noteId']),
+      title: serializer.fromJson<String>(json['title']),
+      content: serializer.fromJson<String>(json['content']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'noteId': serializer.toJson<String>(noteId),
+      'title': serializer.toJson<String>(title),
+      'content': serializer.toJson<String>(content),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  NoteVersionRow copyWith({
+    String? id,
+    String? noteId,
+    String? title,
+    String? content,
+    DateTime? createdAt,
+  }) => NoteVersionRow(
+    id: id ?? this.id,
+    noteId: noteId ?? this.noteId,
+    title: title ?? this.title,
+    content: content ?? this.content,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  NoteVersionRow copyWithCompanion(NoteVersionsCompanion data) {
+    return NoteVersionRow(
+      id: data.id.present ? data.id.value : this.id,
+      noteId: data.noteId.present ? data.noteId.value : this.noteId,
+      title: data.title.present ? data.title.value : this.title,
+      content: data.content.present ? data.content.value : this.content,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteVersionRow(')
+          ..write('id: $id, ')
+          ..write('noteId: $noteId, ')
+          ..write('title: $title, ')
+          ..write('content: $content, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, noteId, title, content, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NoteVersionRow &&
+          other.id == this.id &&
+          other.noteId == this.noteId &&
+          other.title == this.title &&
+          other.content == this.content &&
+          other.createdAt == this.createdAt);
+}
+
+class NoteVersionsCompanion extends UpdateCompanion<NoteVersionRow> {
+  final Value<String> id;
+  final Value<String> noteId;
+  final Value<String> title;
+  final Value<String> content;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const NoteVersionsCompanion({
+    this.id = const Value.absent(),
+    this.noteId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.content = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NoteVersionsCompanion.insert({
+    required String id,
+    required String noteId,
+    required String title,
+    required String content,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       noteId = Value(noteId),
+       title = Value(title),
+       content = Value(content),
+       createdAt = Value(createdAt);
+  static Insertable<NoteVersionRow> custom({
+    Expression<String>? id,
+    Expression<String>? noteId,
+    Expression<String>? title,
+    Expression<String>? content,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (noteId != null) 'note_id': noteId,
+      if (title != null) 'title': title,
+      if (content != null) 'content': content,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NoteVersionsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? noteId,
+    Value<String>? title,
+    Value<String>? content,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return NoteVersionsCompanion(
+      id: id ?? this.id,
+      noteId: noteId ?? this.noteId,
+      title: title ?? this.title,
+      content: content ?? this.content,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (noteId.present) {
+      map['note_id'] = Variable<String>(noteId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteVersionsCompanion(')
+          ..write('id: $id, ')
+          ..write('noteId: $noteId, ')
+          ..write('title: $title, ')
+          ..write('content: $content, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $CalendarEventsTable extends CalendarEvents
     with TableInfo<$CalendarEventsTable, CalendarEventRow> {
   @override
@@ -2253,6 +2605,30 @@ class $CalendarEventsTable extends CalendarEvents
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _isTimeBlockMeta = const VerificationMeta(
+    'isTimeBlock',
+  );
+  @override
+  late final GeneratedColumn<bool> isTimeBlock = GeneratedColumn<bool>(
+    'is_time_block',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_time_block" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _colorMeta = const VerificationMeta('color');
+  @override
+  late final GeneratedColumn<String> color = GeneratedColumn<String>(
+    'color',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -2275,6 +2651,8 @@ class $CalendarEventsTable extends CalendarEvents
     location,
     isAllDay,
     isRecurring,
+    isTimeBlock,
+    color,
     createdAt,
   ];
   @override
@@ -2356,6 +2734,21 @@ class $CalendarEventsTable extends CalendarEvents
         ),
       );
     }
+    if (data.containsKey('is_time_block')) {
+      context.handle(
+        _isTimeBlockMeta,
+        isTimeBlock.isAcceptableOrUnknown(
+          data['is_time_block']!,
+          _isTimeBlockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('color')) {
+      context.handle(
+        _colorMeta,
+        color.isAcceptableOrUnknown(data['color']!, _colorMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -2409,6 +2802,14 @@ class $CalendarEventsTable extends CalendarEvents
         DriftSqlType.bool,
         data['${effectivePrefix}is_recurring'],
       )!,
+      isTimeBlock: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_time_block'],
+      )!,
+      color: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}color'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -2433,6 +2834,8 @@ class CalendarEventRow extends DataClass
   final String? location;
   final bool isAllDay;
   final bool isRecurring;
+  final bool isTimeBlock;
+  final String? color;
   final DateTime createdAt;
   const CalendarEventRow({
     required this.id,
@@ -2444,6 +2847,8 @@ class CalendarEventRow extends DataClass
     this.location,
     required this.isAllDay,
     required this.isRecurring,
+    required this.isTimeBlock,
+    this.color,
     required this.createdAt,
   });
   @override
@@ -2462,6 +2867,10 @@ class CalendarEventRow extends DataClass
     }
     map['is_all_day'] = Variable<bool>(isAllDay);
     map['is_recurring'] = Variable<bool>(isRecurring);
+    map['is_time_block'] = Variable<bool>(isTimeBlock);
+    if (!nullToAbsent || color != null) {
+      map['color'] = Variable<String>(color);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -2481,6 +2890,10 @@ class CalendarEventRow extends DataClass
           : Value(location),
       isAllDay: Value(isAllDay),
       isRecurring: Value(isRecurring),
+      isTimeBlock: Value(isTimeBlock),
+      color: color == null && nullToAbsent
+          ? const Value.absent()
+          : Value(color),
       createdAt: Value(createdAt),
     );
   }
@@ -2500,6 +2913,8 @@ class CalendarEventRow extends DataClass
       location: serializer.fromJson<String?>(json['location']),
       isAllDay: serializer.fromJson<bool>(json['isAllDay']),
       isRecurring: serializer.fromJson<bool>(json['isRecurring']),
+      isTimeBlock: serializer.fromJson<bool>(json['isTimeBlock']),
+      color: serializer.fromJson<String?>(json['color']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -2516,6 +2931,8 @@ class CalendarEventRow extends DataClass
       'location': serializer.toJson<String?>(location),
       'isAllDay': serializer.toJson<bool>(isAllDay),
       'isRecurring': serializer.toJson<bool>(isRecurring),
+      'isTimeBlock': serializer.toJson<bool>(isTimeBlock),
+      'color': serializer.toJson<String?>(color),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -2530,6 +2947,8 @@ class CalendarEventRow extends DataClass
     Value<String?> location = const Value.absent(),
     bool? isAllDay,
     bool? isRecurring,
+    bool? isTimeBlock,
+    Value<String?> color = const Value.absent(),
     DateTime? createdAt,
   }) => CalendarEventRow(
     id: id ?? this.id,
@@ -2541,6 +2960,8 @@ class CalendarEventRow extends DataClass
     location: location.present ? location.value : this.location,
     isAllDay: isAllDay ?? this.isAllDay,
     isRecurring: isRecurring ?? this.isRecurring,
+    isTimeBlock: isTimeBlock ?? this.isTimeBlock,
+    color: color.present ? color.value : this.color,
     createdAt: createdAt ?? this.createdAt,
   );
   CalendarEventRow copyWithCompanion(CalendarEventsCompanion data) {
@@ -2558,6 +2979,10 @@ class CalendarEventRow extends DataClass
       isRecurring: data.isRecurring.present
           ? data.isRecurring.value
           : this.isRecurring,
+      isTimeBlock: data.isTimeBlock.present
+          ? data.isTimeBlock.value
+          : this.isTimeBlock,
+      color: data.color.present ? data.color.value : this.color,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -2574,6 +2999,8 @@ class CalendarEventRow extends DataClass
           ..write('location: $location, ')
           ..write('isAllDay: $isAllDay, ')
           ..write('isRecurring: $isRecurring, ')
+          ..write('isTimeBlock: $isTimeBlock, ')
+          ..write('color: $color, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -2590,6 +3017,8 @@ class CalendarEventRow extends DataClass
     location,
     isAllDay,
     isRecurring,
+    isTimeBlock,
+    color,
     createdAt,
   );
   @override
@@ -2605,6 +3034,8 @@ class CalendarEventRow extends DataClass
           other.location == this.location &&
           other.isAllDay == this.isAllDay &&
           other.isRecurring == this.isRecurring &&
+          other.isTimeBlock == this.isTimeBlock &&
+          other.color == this.color &&
           other.createdAt == this.createdAt);
 }
 
@@ -2618,6 +3049,8 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
   final Value<String?> location;
   final Value<bool> isAllDay;
   final Value<bool> isRecurring;
+  final Value<bool> isTimeBlock;
+  final Value<String?> color;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const CalendarEventsCompanion({
@@ -2630,6 +3063,8 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     this.location = const Value.absent(),
     this.isAllDay = const Value.absent(),
     this.isRecurring = const Value.absent(),
+    this.isTimeBlock = const Value.absent(),
+    this.color = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -2643,6 +3078,8 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     this.location = const Value.absent(),
     this.isAllDay = const Value.absent(),
     this.isRecurring = const Value.absent(),
+    this.isTimeBlock = const Value.absent(),
+    this.color = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -2661,6 +3098,8 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     Expression<String>? location,
     Expression<bool>? isAllDay,
     Expression<bool>? isRecurring,
+    Expression<bool>? isTimeBlock,
+    Expression<String>? color,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -2674,6 +3113,8 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
       if (location != null) 'location': location,
       if (isAllDay != null) 'is_all_day': isAllDay,
       if (isRecurring != null) 'is_recurring': isRecurring,
+      if (isTimeBlock != null) 'is_time_block': isTimeBlock,
+      if (color != null) 'color': color,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -2689,6 +3130,8 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     Value<String?>? location,
     Value<bool>? isAllDay,
     Value<bool>? isRecurring,
+    Value<bool>? isTimeBlock,
+    Value<String?>? color,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -2702,6 +3145,8 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
       location: location ?? this.location,
       isAllDay: isAllDay ?? this.isAllDay,
       isRecurring: isRecurring ?? this.isRecurring,
+      isTimeBlock: isTimeBlock ?? this.isTimeBlock,
+      color: color ?? this.color,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -2737,6 +3182,12 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     if (isRecurring.present) {
       map['is_recurring'] = Variable<bool>(isRecurring.value);
     }
+    if (isTimeBlock.present) {
+      map['is_time_block'] = Variable<bool>(isTimeBlock.value);
+    }
+    if (color.present) {
+      map['color'] = Variable<String>(color.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -2758,6 +3209,8 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
           ..write('location: $location, ')
           ..write('isAllDay: $isAllDay, ')
           ..write('isRecurring: $isRecurring, ')
+          ..write('isTimeBlock: $isTimeBlock, ')
+          ..write('color: $color, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -8139,6 +8592,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $UsersTable users = $UsersTable(this);
   late final $TasksTable tasks = $TasksTable(this);
   late final $NotesTable notes = $NotesTable(this);
+  late final $NoteVersionsTable noteVersions = $NoteVersionsTable(this);
   late final $CalendarEventsTable calendarEvents = $CalendarEventsTable(this);
   late final $HabitsTable habits = $HabitsTable(this);
   late final $JournalEntriesTable journalEntries = $JournalEntriesTable(this);
@@ -8160,6 +8614,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     users,
     tasks,
     notes,
+    noteVersions,
     calendarEvents,
     habits,
     journalEntries,
@@ -9174,6 +9629,206 @@ typedef $$NotesTableProcessedTableManager =
       NoteRow,
       PrefetchHooks Function()
     >;
+typedef $$NoteVersionsTableCreateCompanionBuilder =
+    NoteVersionsCompanion Function({
+      required String id,
+      required String noteId,
+      required String title,
+      required String content,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$NoteVersionsTableUpdateCompanionBuilder =
+    NoteVersionsCompanion Function({
+      Value<String> id,
+      Value<String> noteId,
+      Value<String> title,
+      Value<String> content,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$NoteVersionsTableFilterComposer
+    extends Composer<_$AppDatabase, $NoteVersionsTable> {
+  $$NoteVersionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NoteVersionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $NoteVersionsTable> {
+  $$NoteVersionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NoteVersionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NoteVersionsTable> {
+  $$NoteVersionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get noteId =>
+      $composableBuilder(column: $table.noteId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$NoteVersionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NoteVersionsTable,
+          NoteVersionRow,
+          $$NoteVersionsTableFilterComposer,
+          $$NoteVersionsTableOrderingComposer,
+          $$NoteVersionsTableAnnotationComposer,
+          $$NoteVersionsTableCreateCompanionBuilder,
+          $$NoteVersionsTableUpdateCompanionBuilder,
+          (
+            NoteVersionRow,
+            BaseReferences<_$AppDatabase, $NoteVersionsTable, NoteVersionRow>,
+          ),
+          NoteVersionRow,
+          PrefetchHooks Function()
+        > {
+  $$NoteVersionsTableTableManager(_$AppDatabase db, $NoteVersionsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NoteVersionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NoteVersionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NoteVersionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> noteId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NoteVersionsCompanion(
+                id: id,
+                noteId: noteId,
+                title: title,
+                content: content,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String noteId,
+                required String title,
+                required String content,
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => NoteVersionsCompanion.insert(
+                id: id,
+                noteId: noteId,
+                title: title,
+                content: content,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NoteVersionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NoteVersionsTable,
+      NoteVersionRow,
+      $$NoteVersionsTableFilterComposer,
+      $$NoteVersionsTableOrderingComposer,
+      $$NoteVersionsTableAnnotationComposer,
+      $$NoteVersionsTableCreateCompanionBuilder,
+      $$NoteVersionsTableUpdateCompanionBuilder,
+      (
+        NoteVersionRow,
+        BaseReferences<_$AppDatabase, $NoteVersionsTable, NoteVersionRow>,
+      ),
+      NoteVersionRow,
+      PrefetchHooks Function()
+    >;
 typedef $$CalendarEventsTableCreateCompanionBuilder =
     CalendarEventsCompanion Function({
       required String id,
@@ -9185,6 +9840,8 @@ typedef $$CalendarEventsTableCreateCompanionBuilder =
       Value<String?> location,
       Value<bool> isAllDay,
       Value<bool> isRecurring,
+      Value<bool> isTimeBlock,
+      Value<String?> color,
       required DateTime createdAt,
       Value<int> rowid,
     });
@@ -9199,6 +9856,8 @@ typedef $$CalendarEventsTableUpdateCompanionBuilder =
       Value<String?> location,
       Value<bool> isAllDay,
       Value<bool> isRecurring,
+      Value<bool> isTimeBlock,
+      Value<String?> color,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -9254,6 +9913,16 @@ class $$CalendarEventsTableFilterComposer
 
   ColumnFilters<bool> get isRecurring => $composableBuilder(
     column: $table.isRecurring,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isTimeBlock => $composableBuilder(
+    column: $table.isTimeBlock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get color => $composableBuilder(
+    column: $table.color,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9317,6 +9986,16 @@ class $$CalendarEventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isTimeBlock => $composableBuilder(
+    column: $table.isTimeBlock,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get color => $composableBuilder(
+    column: $table.color,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -9362,6 +10041,14 @@ class $$CalendarEventsTableAnnotationComposer
     column: $table.isRecurring,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get isTimeBlock => $composableBuilder(
+    column: $table.isTimeBlock,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get color =>
+      $composableBuilder(column: $table.color, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -9413,6 +10100,8 @@ class $$CalendarEventsTableTableManager
                 Value<String?> location = const Value.absent(),
                 Value<bool> isAllDay = const Value.absent(),
                 Value<bool> isRecurring = const Value.absent(),
+                Value<bool> isTimeBlock = const Value.absent(),
+                Value<String?> color = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CalendarEventsCompanion(
@@ -9425,6 +10114,8 @@ class $$CalendarEventsTableTableManager
                 location: location,
                 isAllDay: isAllDay,
                 isRecurring: isRecurring,
+                isTimeBlock: isTimeBlock,
+                color: color,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -9439,6 +10130,8 @@ class $$CalendarEventsTableTableManager
                 Value<String?> location = const Value.absent(),
                 Value<bool> isAllDay = const Value.absent(),
                 Value<bool> isRecurring = const Value.absent(),
+                Value<bool> isTimeBlock = const Value.absent(),
+                Value<String?> color = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => CalendarEventsCompanion.insert(
@@ -9451,6 +10144,8 @@ class $$CalendarEventsTableTableManager
                 location: location,
                 isAllDay: isAllDay,
                 isRecurring: isRecurring,
+                isTimeBlock: isTimeBlock,
+                color: color,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -12200,6 +12895,8 @@ class $AppDatabaseManager {
       $$TasksTableTableManager(_db, _db.tasks);
   $$NotesTableTableManager get notes =>
       $$NotesTableTableManager(_db, _db.notes);
+  $$NoteVersionsTableTableManager get noteVersions =>
+      $$NoteVersionsTableTableManager(_db, _db.noteVersions);
   $$CalendarEventsTableTableManager get calendarEvents =>
       $$CalendarEventsTableTableManager(_db, _db.calendarEvents);
   $$HabitsTableTableManager get habits =>
