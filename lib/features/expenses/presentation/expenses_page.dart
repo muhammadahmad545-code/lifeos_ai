@@ -530,6 +530,7 @@ class _ExpenseFormSheetState extends ConsumerState<_ExpenseFormSheet> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
+              key: ValueKey<String>('expense-category-$_category'),
               initialValue: _category,
               decoration: const InputDecoration(labelText: 'Category'),
               items: _expenseCategories.map((String c) => DropdownMenuItem<String>(value: c, child: Text(c))).toList(),
@@ -634,6 +635,7 @@ class _BudgetFormSheetState extends State<_BudgetFormSheet> {
             Text('Set monthly budget', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
+              key: ValueKey<String>('budget-category-$_category'),
               initialValue: _category,
               decoration: const InputDecoration(labelText: 'Category'),
               items: _expenseCategories.map((String c) => DropdownMenuItem<String>(value: c, child: Text(c))).toList(),

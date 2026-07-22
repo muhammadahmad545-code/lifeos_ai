@@ -89,6 +89,11 @@ class TaskRepositoryImpl implements TaskRepository {
 
   @override
   Future<void> deleteTask(String taskId) async {
+    final List<TaskRow> children =
+        await (_db.select(_db.tasks)..where((Tasks tbl) => tbl.parentId.equals(taskId))).get();
+    for (final TaskRow child in children) {
+      await deleteTask(child.id);
+    }
     await (_db.delete(_db.tasks)..where((Tasks tbl) => tbl.id.equals(taskId))).go();
   }
 
@@ -113,12 +118,7 @@ class TaskRepositoryImpl implements TaskRepository {
           : task.recurrence;
       if (recurrence != TaskRecurrence.none) {
         final DateTime base = task.dueDate ?? DateTime.now();
-        final DateTime nextDue = switch (recurrence) {
-          TaskRecurrence.daily => base.add(const Duration(days: 1)),
-          TaskRecurrence.weekly => base.add(const Duration(days: 7)),
-          TaskRecurrence.monthly => DateTime(base.year, base.month + 1, base.day, base.hour, base.minute),
-          TaskRecurrence.none => base,
-        };
+        final DateTime nextDue = _nextDueDate(base, recurrence);
         DateTime? nextReminder;
         if (task.reminderAt != null && task.dueDate != null) {
           nextReminder = task.reminderAt!.add(nextDue.difference(task.dueDate!));
@@ -130,6 +130,7 @@ class TaskRepositoryImpl implements TaskRepository {
             isCompleted: false,
             dueDate: nextDue,
             reminderAt: nextReminder,
+            clearReminder: nextReminder == null,
             recurrence: recurrence,
             isRecurring: true,
             updatedAt: DateTime.now(),
@@ -138,6 +139,25 @@ class TaskRepositoryImpl implements TaskRepository {
         );
       }
     }
+  }
+
+  DateTime _nextDueDate(DateTime base, TaskRecurrence recurrence) {
+    return switch (recurrence) {
+      TaskRecurrence.daily => base.add(const Duration(days: 1)),
+      TaskRecurrence.weekly => base.add(const Duration(days: 7)),
+      TaskRecurrence.monthly => _addCalendarMonth(base),
+      TaskRecurrence.none => base,
+    };
+  }
+
+  /// Adds one calendar month without overflowing into the following month
+  /// (e.g. Jan 31 → Feb 28/29 instead of March).
+  DateTime _addCalendarMonth(DateTime base) {
+    final int year = base.month == 12 ? base.year + 1 : base.year;
+    final int month = base.month == 12 ? 1 : base.month + 1;
+    final int lastDay = DateTime(year, month + 1, 0).day;
+    final int day = base.day > lastDay ? lastDay : base.day;
+    return DateTime(year, month, day, base.hour, base.minute, base.second, base.millisecond);
   }
 
   @override

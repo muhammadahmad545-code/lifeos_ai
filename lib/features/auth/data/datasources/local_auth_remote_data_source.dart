@@ -17,8 +17,12 @@ class LocalAuthRemoteDataSource implements AuthRemoteDataSource {
 
   @override
   Future<AuthUser> signInWithEmail({required String email, required String password}) async {
-    final UserRow? row = await (_db.select(_db.users)..where((Users tbl) => tbl.email.equals(email.toLowerCase())))
-        .getSingleOrNull();
+    final String normalized = email.trim().toLowerCase();
+    if (normalized.isEmpty || password.isEmpty) {
+      throw StateError('Enter your email and password.');
+    }
+    final UserRow? row =
+        await (_db.select(_db.users)..where((Users tbl) => tbl.email.equals(normalized))).getSingleOrNull();
 
     if (row == null || !PasswordHasher.verify(password, row.passwordHash)) {
       throw StateError('Invalid email or password.');
@@ -222,14 +226,19 @@ class LocalAuthRemoteDataSource implements AuthRemoteDataSource {
   }
 
   Future<void> resetPassword({required String email, required String newPassword}) async {
-    final UserRow? row = await (_db.select(_db.users)..where((Users tbl) => tbl.email.equals(email.toLowerCase())))
-        .getSingleOrNull();
+    if (newPassword.length < 6) {
+      throw StateError('Password must be at least 6 characters.');
+    }
+    final UserRow? row =
+        await (_db.select(_db.users)..where((Users tbl) => tbl.email.equals(email.trim().toLowerCase())))
+            .getSingleOrNull();
     if (row == null) {
       throw StateError('No account found for that email.');
     }
     await (_db.update(_db.users)..where((Users tbl) => tbl.id.equals(row.id))).write(
           UsersCompanion(passwordHash: Value<String>(PasswordHasher.hash(newPassword))),
         );
+    _pendingOtpCode = null;
   }
 
   AuthUser _map(UserRow row) {

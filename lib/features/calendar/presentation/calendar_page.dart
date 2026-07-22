@@ -129,15 +129,19 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                child: SegmentedButton<_CalendarView>(
-                  segments: const <ButtonSegment<_CalendarView>>[
-                    ButtonSegment<_CalendarView>(value: _CalendarView.month, label: Text('Month'), icon: Icon(Icons.calendar_view_month)),
-                    ButtonSegment<_CalendarView>(value: _CalendarView.week, label: Text('Week'), icon: Icon(Icons.view_week_outlined)),
-                    ButtonSegment<_CalendarView>(value: _CalendarView.day, label: Text('Day'), icon: Icon(Icons.view_day_outlined)),
-                    ButtonSegment<_CalendarView>(value: _CalendarView.agenda, label: Text('Agenda'), icon: Icon(Icons.view_agenda_outlined)),
-                  ],
-                  selected: <_CalendarView>{_view},
-                  onSelectionChanged: (Set<_CalendarView> value) => setState(() => _view = value.first),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SegmentedButton<_CalendarView>(
+                    showSelectedIcon: false,
+                    segments: const <ButtonSegment<_CalendarView>>[
+                      ButtonSegment<_CalendarView>(value: _CalendarView.month, label: Text('Month')),
+                      ButtonSegment<_CalendarView>(value: _CalendarView.week, label: Text('Week')),
+                      ButtonSegment<_CalendarView>(value: _CalendarView.day, label: Text('Day')),
+                      ButtonSegment<_CalendarView>(value: _CalendarView.agenda, label: Text('Agenda')),
+                    ],
+                    selected: <_CalendarView>{_view},
+                    onSelectionChanged: (Set<_CalendarView> value) => setState(() => _view = value.first),
+                  ),
                 ),
               ),
               if (_view == _CalendarView.month) ...<Widget>[
@@ -585,6 +589,10 @@ class _EventFormSheetState extends State<_EventFormSheet> {
   void _submit() {
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Title is required.')));
+      return;
+    }
+    if (!_isAllDay && !_end.isAfter(_start)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('End time must be after start time.')));
       return;
     }
     final CalendarEvent result = (widget.initial ?? CalendarEvent(id: '', title: '', startTime: _start, endTime: _end)).copyWith(

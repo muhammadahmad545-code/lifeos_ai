@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -38,15 +39,28 @@ class AppUpdaterService {
     final PackageInfo packageInfo = await PackageInfo.fromPlatform();
     final int currentCode = int.tryParse(packageInfo.buildNumber) ?? 0;
 
-    final Response<dynamic> releaseResponse = await _dio.get<dynamic>(
-      'https://api.github.com/repos/$githubOwner/$githubRepo/releases/latest',
-      options: Options(
-        headers: <String, String>{
-          'Accept': 'application/vnd.github+json',
-          'User-Agent': 'LIFEOS-AI-Updater',
-        },
-      ),
-    );
+    late final Response<dynamic> releaseResponse;
+    try {
+      releaseResponse = await _dio.get<dynamic>(
+        'https://api.github.com/repos/$githubOwner/$githubRepo/releases/latest',
+        options: Options(
+          headers: <String, String>{
+            'Accept': 'application/vnd.github+json',
+            'User-Agent': 'LIFEOS-AI-Updater',
+          },
+          validateStatus: (int? status) => status != null && status < 500,
+        ),
+      );
+    } on DioException {
+      return null;
+    }
+
+    if (releaseResponse.statusCode == 404) {
+      return null;
+    }
+    if (releaseResponse.statusCode != 200 || releaseResponse.data is! Map) {
+      return null;
+    }
 
     final Map<String, dynamic> release = Map<String, dynamic>.from(releaseResponse.data as Map<dynamic, dynamic>);
     final List<dynamic> assets = (release['assets'] as List<dynamic>? ?? const <dynamic>[]);
@@ -56,23 +70,29 @@ class AppUpdaterService {
     String? apkUrl;
 
     for (final dynamic asset in assets) {
-      final Map<String, dynamic> map = Map<String, dynamic>.from(asset as Map<dynamic, dynamic>);
+      if (asset is! Map) {
+        continue;
+      }
+      final Map<String, dynamic> map = Map<String, dynamic>.from(asset);
       final String name = map['name'] as String? ?? '';
       final String url = map['browser_download_url'] as String? ?? '';
       if (name == 'version.json' && url.isNotEmpty) {
-        final Response<dynamic> versionResponse = await _dio.get<dynamic>(url);
-        versionJson = Map<String, dynamic>.from(versionResponse.data as Map<dynamic, dynamic>);
+        versionJson = await _fetchVersionJson(url);
       } else if (name.endsWith('.apk') && url.isNotEmpty) {
         apkUrl = url;
       }
     }
 
-    if (apkUrl == null) {
+    if (apkUrl == null || apkUrl.isEmpty) {
       return null;
     }
 
     final int remoteCode = (versionJson?['versionCode'] as num?)?.toInt() ??
         _versionCodeFromTag(release['tag_name'] as String?);
+    if (remoteCode <= 0) {
+      return null;
+    }
+
     final String remoteName = versionJson?['versionName'] as String? ??
         (release['tag_name'] as String? ?? '').replaceFirst(RegExp(r'^v'), '');
     final String notes = (versionJson?['notes'] as String?)?.trim().isNotEmpty == true
@@ -92,6 +112,25 @@ class AppUpdaterService {
     );
   }
 
+  Future<Map<String, dynamic>?> _fetchVersionJson(String url) async {
+    try {
+      final Response<dynamic> versionResponse = await _dio.get<dynamic>(url);
+      final dynamic data = versionResponse.data;
+      if (data is Map) {
+        return Map<String, dynamic>.from(data);
+      }
+      if (data is String) {
+        final dynamic decoded = jsonDecode(data);
+        if (decoded is Map) {
+          return Map<String, dynamic>.from(decoded);
+        }
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+
   int _versionCodeFromTag(String? tag) {
     if (tag == null || tag.isEmpty) {
       return 0;
@@ -105,7 +144,11 @@ class AppUpdaterService {
     void Function(double progress)? onProgress,
   }) async {
     final Directory dir = await getTemporaryDirectory();
-    final File file = File('${dir.path}/lifeos-ai-${info.versionName}.apk');
+    final String safeName = info.versionName.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+    final File file = File('${dir.path}/lifeos-ai-$safeName.apk');
+    if (await file.exists()) {
+      await file.delete();
+    }
     await _dio.download(
       info.apkUrl,
       file.path,
@@ -121,6 +164,9 @@ class AppUpdaterService {
         },
       ),
     );
+    if (!await file.exists() || await file.length() < 1024) {
+      throw StateError('Downloaded APK looks invalid. Try again.');
+    }
     return file;
   }
 

@@ -31,6 +31,7 @@ class ReceiptTextParser {
         .toList();
 
     double? amount;
+    double? totalAmount;
     final Iterable<RegExpMatch> matches = _amountPattern.allMatches(text);
     for (final RegExpMatch match in matches) {
       final String? raw = match.group(1);
@@ -38,10 +39,16 @@ class ReceiptTextParser {
         continue;
       }
       final double? value = double.tryParse(raw.replaceAll('\$', '').replaceAll(',', '.'));
-      if (value != null && value > 0) {
-        amount = value;
+      if (value == null || value <= 0) {
+        continue;
+      }
+      amount = value;
+      final String prefix = text.substring(match.start, match.end).toLowerCase();
+      if (prefix.contains('total') || prefix.contains('amount') || prefix.contains('balance')) {
+        totalAmount = value;
       }
     }
+    amount = totalAmount ?? amount;
 
     String? description;
     for (final String line in lines) {

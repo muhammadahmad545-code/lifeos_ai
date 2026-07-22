@@ -46,7 +46,7 @@ Updated after latest build. ✅ working · 🟡 partial · ❌ not yet
 | Website blocking ready hooks | ❌ |
 | FCM push, Crashlytics live, Remote Config | ❌ |
 | Lottie / glassmorphism design pack | ❌ |
-| Full test suites | 🟡 basic unit tests |
+| Full test suites | 🟡 expanded QA suite (21 automated tests) |
 
 ## Next priority
 1. Firestore sync once Firebase is configured

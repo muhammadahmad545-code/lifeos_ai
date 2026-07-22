@@ -734,6 +734,7 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<TaskRecurrence>(
+              key: ValueKey<TaskRecurrence>(_recurrence),
               initialValue: _recurrence,
               decoration: const InputDecoration(labelText: 'Repeat'),
               items: TaskRecurrence.values
