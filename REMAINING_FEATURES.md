@@ -3,6 +3,7 @@
 Updated after latest build. ✅ working · 🟡 partial · ❌ not yet
 
 ## Done in this pass
+- ✅ GitHub Actions release APK + in-app update banner/installer
 - ✅ Notes version history (auto-snapshot on edit, restore)
 - ✅ Calendar Day view + time blocking (hourly grid, colors)
 - ✅ On-device OCR (notes scan + receipt amount/category extract)

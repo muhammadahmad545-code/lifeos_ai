@@ -23,6 +23,29 @@ class LocalNotificationService {
     _ready = true;
   }
 
+  Future<void> showNow({
+    required int id,
+    required String title,
+    required String body,
+  }) async {
+    await initialize();
+    await _plugin.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'lifeos_updates',
+          'LifeOS Updates',
+          channelDescription: 'App update availability alerts',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+    );
+  }
+
   Future<void> scheduleReminder({
     required int id,
     required String title,

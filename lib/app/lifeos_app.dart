@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants/app_constants.dart';
 import '../core/providers/providers.dart';
 import '../core/theme/lifeos_theme.dart';
+import '../shared/widgets/app_update_listener.dart';
 
 class LifeOSApp extends ConsumerWidget {
   const LifeOSApp({super.key});
@@ -20,6 +21,9 @@ class LifeOSApp extends ConsumerWidget {
       darkTheme: LifeOSTheme.dark(),
       themeMode: themeMode,
       routerConfig: router,
+      builder: (BuildContext context, Widget? child) {
+        return AppUpdateListener(child: child ?? const SizedBox.shrink());
+      },
     );
   }
 }

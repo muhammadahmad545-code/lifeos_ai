@@ -1,7 +1,7 @@
 name: lifeos_ai
 description: Your entire life in one intelligent application.
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.1.2+2
 
 environment:
   sdk: '>=3.8.0 <4.0.0'
@@ -58,6 +58,7 @@ dependencies:
   flutter_local_notifications: ^22.1.0
   timezone: ^0.11.1
   google_mlkit_text_recognition: ^0.15.0
+  package_info_plus: ^8.3.0
 
 dev_dependencies:
   flutter_test:

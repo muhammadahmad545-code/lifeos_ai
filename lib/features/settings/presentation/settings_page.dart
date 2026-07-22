@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/feature_providers.dart';
 import '../../../core/providers/providers.dart';
+import '../../../core/services/app_updater_service.dart';
 
 const List<Map<String, String>> _languages = <Map<String, String>>[
   <String, String>{'code': 'en', 'label': 'English'},
@@ -39,6 +41,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   late bool _notificationsEnabled;
   late String _language;
   late final TextEditingController _cityController;
+  String _versionLabel = '…';
+  bool _checkingUpdate = false;
+  bool _downloadingUpdate = false;
+  double _downloadProgress = 0;
 
   @override
   void initState() {
@@ -47,6 +53,90 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _notificationsEnabled = settings.notificationsEnabled;
     _language = settings.language;
     _cityController = TextEditingController(text: settings.weatherCity);
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final PackageInfo info = await PackageInfo.fromPlatform();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _versionLabel = '${info.version} (${info.buildNumber})');
+  }
+
+  Future<void> _checkForUpdates() async {
+    if (_checkingUpdate || _downloadingUpdate) {
+      return;
+    }
+    setState(() => _checkingUpdate = true);
+    try {
+      final AppUpdateInfo? update = await ref.read(appUpdaterServiceProvider).checkForUpdate();
+      if (!mounted) {
+        return;
+      }
+      if (update == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('You are on the latest version ($_versionLabel).')),
+        );
+        return;
+      }
+      final bool? install = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+          title: Text('Update ${update.versionName}'),
+          content: Text(
+            'A new LIFEOS AI build is available.\n\n${update.notes}\n\n'
+            'Tap Update to download and install. Your local data stays on this phone.',
+          ),
+          actions: <Widget>[
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Later')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Update')),
+          ],
+        ),
+      );
+      if (install == true) {
+        await _downloadAndInstall(update);
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Update check failed: $error'), backgroundColor: Theme.of(context).colorScheme.error),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _checkingUpdate = false);
+      }
+    }
+  }
+
+  Future<void> _downloadAndInstall(AppUpdateInfo update) async {
+    setState(() {
+      _downloadingUpdate = true;
+      _downloadProgress = 0;
+    });
+    try {
+      final AppUpdaterService updater = ref.read(appUpdaterServiceProvider);
+      final file = await updater.downloadApk(
+        update,
+        onProgress: (double value) {
+          if (mounted) {
+            setState(() => _downloadProgress = value);
+          }
+        },
+      );
+      await updater.installApk(file);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Install failed: $error'), backgroundColor: Theme.of(context).colorScheme.error),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _downloadingUpdate = false);
+      }
+    }
   }
 
   @override
@@ -93,7 +183,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     showAboutDialog(
       context: context,
       applicationName: AppConstants.appName,
-      applicationVersion: '0.1.0',
+      applicationVersion: _versionLabel,
       applicationLegalese: AppConstants.tagline,
       children: <Widget>[
         const SizedBox(height: 12),
@@ -101,6 +191,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           'LIFEOS AI runs fully offline: your tasks, notes, habits, journal, expenses, goals, and '
           'assistant conversations are stored locally on this device.',
         ),
+        const SizedBox(height: 8),
+        Text('Updates: ${AppConstants.githubReleasesUrl}'),
       ],
     );
   }
@@ -246,10 +338,30 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             trailing: const Icon(Icons.ios_share_rounded),
             onTap: _exportBackup,
           ),
+          const _SectionLabel('Updates'),
+          ListTile(
+            leading: _checkingUpdate || _downloadingUpdate
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.system_update_outlined),
+            title: Text(_downloadingUpdate ? 'Downloading update…' : 'Check for updates'),
+            subtitle: Text(
+              _downloadingUpdate
+                  ? '${(_downloadProgress * 100).round()}% — keep the app open'
+                  : 'Current version $_versionLabel',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _checkingUpdate || _downloadingUpdate ? null : _checkForUpdates,
+          ),
+          if (_downloadingUpdate)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: LinearProgressIndicator(value: _downloadProgress <= 0 ? null : _downloadProgress),
+            ),
           const _SectionLabel('About'),
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: const Text('About LIFEOS AI'),
+            subtitle: Text('Version $_versionLabel'),
             trailing: const Icon(Icons.chevron_right),
             onTap: _showAbout,
           ),
