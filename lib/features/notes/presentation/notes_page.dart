@@ -1,12 +1,19 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
 
 import '../../../core/providers/feature_providers.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/services/note_pdf_exporter.dart';
+import '../../../core/utils/media_path_helper.dart';
 import '../../../shared/widgets/empty_state_view.dart';
 import '../domain/note.dart';
+import 'note_drawing_page.dart';
 
 class NotesPage extends ConsumerStatefulWidget {
   const NotesPage({super.key});
@@ -271,7 +278,11 @@ class _NoteEditorDialogState extends State<_NoteEditorDialog> {
   late final TextEditingController _contentController;
   late final TextEditingController _tagsController;
   late final TextEditingController _folderController;
+  final AudioRecorder _recorder = AudioRecorder();
+  final AudioPlayer _player = AudioPlayer();
   bool _preview = false;
+  bool _recording = false;
+  String? _playingPath;
 
   @override
   void initState() {
@@ -289,7 +300,74 @@ class _NoteEditorDialogState extends State<_NoteEditorDialog> {
     _contentController.dispose();
     _tagsController.dispose();
     _folderController.dispose();
+    _recorder.dispose();
+    _player.dispose();
     super.dispose();
+  }
+
+  void _appendLine(String line) {
+    final String current = _contentController.text;
+    final String next = current.isEmpty ? line : '$current\n$line';
+    setState(() => _contentController.text = next);
+  }
+
+  Future<void> _toggleRecording() async {
+    if (_recording) {
+      final String? path = await _recorder.stop();
+      setState(() => _recording = false);
+      if (path != null && path.isNotEmpty) {
+        _appendLine('[voice]($path)');
+      }
+      return;
+    }
+    final PermissionStatus status = await Permission.microphone.request();
+    if (!status.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Microphone permission is required for voice notes.')),
+        );
+      }
+      return;
+    }
+    final String path = await MediaPathHelper.nextPath(folder: 'voice', extension: 'm4a');
+    await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
+    setState(() => _recording = true);
+  }
+
+  Future<void> _openDrawing() async {
+    final String? path = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(builder: (BuildContext context) => const NoteDrawingPage()),
+    );
+    if (path != null && path.isNotEmpty) {
+      _appendLine('![Drawing]($path)');
+    }
+  }
+
+  Future<void> _playVoice(String path) async {
+    if (_playingPath == path) {
+      await _player.stop();
+      setState(() => _playingPath = null);
+      return;
+    }
+    if (!File(path).existsSync()) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Voice file not found.')));
+      return;
+    }
+    await _player.setFilePath(path);
+    setState(() => _playingPath = path);
+    await _player.play();
+    _player.processingStateStream
+        .firstWhere((ProcessingState state) => state == ProcessingState.completed)
+        .then((_) {
+      if (mounted) {
+        setState(() => _playingPath = null);
+      }
+    });
+  }
+
+  List<String> _voicePaths(String content) {
+    final RegExp re = RegExp(r'\[voice\]\(([^)]+)\)');
+    return re.allMatches(content).map((Match m) => m.group(1)!).toList();
   }
 
   void _submit() {
@@ -371,24 +449,38 @@ class _NoteEditorDialogState extends State<_NoteEditorDialog> {
                 children: <Widget>[
                   ActionChip(
                     label: const Text('Checklist'),
-                    onPressed: () {
-                      final String next = _contentController.text.isEmpty
-                          ? '- [ ] New item'
-                          : '${_contentController.text}\n- [ ] New item';
-                      setState(() => _contentController.text = next);
-                    },
+                    onPressed: () => _appendLine('- [ ] New item'),
                   ),
                   ActionChip(
                     label: const Text('Heading'),
-                    onPressed: () {
-                      final String next = _contentController.text.isEmpty
-                          ? '# Title'
-                          : '${_contentController.text}\n\n## Section';
-                      setState(() => _contentController.text = next);
-                    },
+                    onPressed: () => _appendLine('## Section'),
+                  ),
+                  ActionChip(
+                    avatar: Icon(_recording ? Icons.stop : Icons.mic_none, size: 18),
+                    label: Text(_recording ? 'Stop' : 'Voice'),
+                    onPressed: _toggleRecording,
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.brush_outlined, size: 18),
+                    label: const Text('Draw'),
+                    onPressed: _openDrawing,
                   ),
                 ],
               ),
+              if (_voicePaths(_contentController.text).isNotEmpty) ...<Widget>[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: _voicePaths(_contentController.text).map((String path) {
+                    final bool playing = _playingPath == path;
+                    return ActionChip(
+                      avatar: Icon(playing ? Icons.stop : Icons.play_arrow, size: 18),
+                      label: Text(playing ? 'Stop voice' : 'Play voice'),
+                      onPressed: () => _playVoice(path),
+                    );
+                  }).toList(),
+                ),
+              ],
               const SizedBox(height: 8),
               Row(
                 children: <Widget>[

@@ -5,12 +5,14 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../core/providers/providers.dart';
 import '../core/services/firebase_bootstrap_service.dart';
 import '../core/services/settings_service.dart';
+import '../features/tasks/data/task_template_store.dart';
 import 'lifeos_app.dart';
 
 Future<void> bootstrapApp() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await Hive.openBox<dynamic>(SettingsService.boxName);
+  await Hive.openBox<dynamic>(TaskTemplateStore.boxName);
   await FirebaseBootstrapService().initialize();
 
   final ProviderContainer container = ProviderContainer();

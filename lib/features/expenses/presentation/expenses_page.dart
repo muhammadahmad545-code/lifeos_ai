@@ -1,13 +1,28 @@
+import 'dart:io';
+
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/providers/feature_providers.dart';
 import '../../../core/providers/providers.dart';
+import '../../../core/utils/media_path_helper.dart';
 import '../../../shared/widgets/empty_state_view.dart';
 import '../../../shared/widgets/premium_card.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../domain/expense.dart';
+
+const List<Color> _chartColors = <Color>[
+  Color(0xFF2563EB),
+  Color(0xFF0D9488),
+  Color(0xFFF59E0B),
+  Color(0xFFEF4444),
+  Color(0xFF8B5CF6),
+  Color(0xFFEC4899),
+  Color(0xFF64748B),
+];
 
 const List<String> _expenseCategories = <String>[
   'Food',
@@ -170,30 +185,58 @@ class _ExpensesPageState extends ConsumerState<ExpensesPage> {
                   const SizedBox(height: 12),
                   PremiumCard(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: ranked.take(6).map((MapEntry<String, double> entry) {
-                        final double pct = spent <= 0 ? 0 : entry.value / spent;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: <Widget>[
-                                  Text(entry.key),
-                                  Text('${money.format(entry.value)} (${(pct * 100).round()}%)'),
-                                ],
+                      children: <Widget>[
+                        SizedBox(
+                          height: 200,
+                          child: PieChart(
+                            PieChartData(
+                              sectionsSpace: 2,
+                              centerSpaceRadius: 42,
+                              sections: List<PieChartSectionData>.generate(
+                                ranked.take(6).length,
+                                (int i) {
+                                  final MapEntry<String, double> entry = ranked[i];
+                                  final double pct = spent <= 0 ? 0 : entry.value / spent;
+                                  return PieChartSectionData(
+                                    color: _chartColors[i % _chartColors.length],
+                                    value: entry.value,
+                                    title: '${(pct * 100).round()}%',
+                                    radius: 54,
+                                    titleStyle: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  );
+                                },
                               ),
-                              const SizedBox(height: 4),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(999),
-                                child: LinearProgressIndicator(value: pct, minHeight: 8),
-                              ),
-                            ],
+                            ),
                           ),
-                        );
-                      }).toList(),
+                        ),
+                        const SizedBox(height: 8),
+                        ...List<Widget>.generate(ranked.take(6).length, (int i) {
+                          final MapEntry<String, double> entry = ranked[i];
+                          final double pct = spent <= 0 ? 0 : entry.value / spent;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: <Widget>[
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: _chartColors[i % _chartColors.length],
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text(entry.key)),
+                                Text('${money.format(entry.value)} (${(pct * 100).round()}%)'),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -275,7 +318,10 @@ class _ExpensesPageState extends ConsumerState<ExpensesPage> {
                           child: Icon(expense.isIncome ? Icons.arrow_downward : Icons.arrow_upward, color: color),
                         ),
                         title: Text(expense.description),
-                        subtitle: Text('${expense.category} · ${DateFormat.MMMd().format(expense.date)}'),
+                        subtitle: Text(
+                          '${expense.category} · ${DateFormat.MMMd().format(expense.date)}'
+                          '${expense.receiptPath != null ? ' · receipt' : ''}',
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
@@ -348,6 +394,7 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
   late String _category;
   late DateTime _date;
   late bool _isIncome;
+  String? _receiptPath;
 
   @override
   void initState() {
@@ -358,6 +405,20 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
     _category = e?.category ?? _expenseCategories.first;
     _date = e?.date ?? DateTime.now();
     _isIncome = e?.isIncome ?? widget.isIncome;
+    _receiptPath = e?.receiptPath;
+  }
+
+  Future<void> _pickReceipt(ImageSource source) async {
+    final XFile? picked = await ImagePicker().pickImage(source: source, imageQuality: 85);
+    if (picked == null) {
+      return;
+    }
+    final File copied = await MediaPathHelper.copyInto(
+      sourcePath: picked.path,
+      folder: 'receipts',
+      extension: 'jpg',
+    );
+    setState(() => _receiptPath = copied.path);
   }
 
   @override
@@ -391,6 +452,8 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
       category: _category,
       date: _date,
       isIncome: _isIncome,
+      receiptPath: _receiptPath,
+      clearReceipt: _receiptPath == null,
     );
     Navigator.of(context).pop(result);
   }
@@ -437,6 +500,43 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
               onPressed: _pickDate,
               label: Text(DateFormat.yMMMd().format(_date)),
             ),
+            if (!_isIncome) ...<Widget>[
+              const SizedBox(height: 12),
+              if (_receiptPath != null) ...<Widget>[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(File(_receiptPath!), height: 140, width: double.infinity, fit: BoxFit.cover),
+                ),
+                const SizedBox(height: 8),
+              ],
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.photo_camera_outlined),
+                      onPressed: () => _pickReceipt(ImageSource.camera),
+                      label: const Text('Camera'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.photo_library_outlined),
+                      onPressed: () => _pickReceipt(ImageSource.gallery),
+                      label: const Text('Gallery'),
+                    ),
+                  ),
+                  if (_receiptPath != null) ...<Widget>[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Remove receipt',
+                      onPressed: () => setState(() => _receiptPath = null),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ],
+              ),
+            ],
             const SizedBox(height: 20),
             FilledButton(onPressed: _submit, child: Text(isEditing ? 'Save changes' : 'Save')),
           ],

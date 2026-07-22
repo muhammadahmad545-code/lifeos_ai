@@ -47,6 +47,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
             date: expense.date,
             isIncome: Value<bool>(expense.isIncome),
             tags: Value<String>(ListCodec.encode(expense.tags)),
+            receiptPath: Value<String?>(expense.receiptPath),
             createdAt: expense.createdAt ?? now,
           ),
         );
@@ -64,6 +65,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
             date: Value<DateTime>(expense.date),
             isIncome: Value<bool>(expense.isIncome),
             tags: Value<String>(ListCodec.encode(expense.tags)),
+            receiptPath: Value<String?>(expense.receiptPath),
           ),
         );
     final ExpenseRow row =
@@ -161,6 +163,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       date: row.date,
       isIncome: row.isIncome,
       tags: ListCodec.decode(row.tags),
+      receiptPath: row.receiptPath,
       createdAt: row.createdAt,
     );
   }

@@ -15,6 +15,7 @@ import '../../features/auth/services/local_auth_biometric_service.dart';
 import '../../features/auth/services/secure_session_store.dart';
 import '../../features/auth/services/session_store.dart';
 import '../../features/auth/services/social_auth_service.dart';
+import '../../features/tasks/data/task_template_store.dart';
 import '../services/local_notification_service.dart';
 import '../services/settings_service.dart';
 import '../services/weather_service.dart';
@@ -26,6 +27,10 @@ final settingsBoxProvider = Provider<Box<dynamic>>((ref) {
 
 final settingsServiceProvider = Provider<SettingsService>((ref) {
   return SettingsService(ref.watch(settingsBoxProvider));
+});
+
+final taskTemplateStoreProvider = Provider<TaskTemplateStore>((ref) {
+  return TaskTemplateStore(Hive.box<dynamic>(TaskTemplateStore.boxName));
 });
 
 final themeModeProvider = StateNotifierProvider<ThemeModeController, ThemeMode>((ref) {

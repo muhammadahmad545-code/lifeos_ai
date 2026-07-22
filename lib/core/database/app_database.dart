@@ -29,7 +29,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -40,6 +40,11 @@ class AppDatabase extends _$AppDatabase {
           if (from < 2) {
             await m.addColumn(tasks, tasks.recurrence);
             await m.addColumn(tasks, tasks.reminderAt);
+          }
+          if (from < 3) {
+            await m.addColumn(expenses, expenses.receiptPath);
+            await m.addColumn(goals, goals.visionImagePath);
+            await m.addColumn(goals, goals.visionColor);
           }
         },
       );

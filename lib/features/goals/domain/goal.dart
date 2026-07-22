@@ -8,6 +8,8 @@ class Goal {
     this.progress = 0,
     this.milestones = const <String>[],
     this.isCompleted = false,
+    this.visionImagePath,
+    this.visionColor,
     this.createdAt,
   });
 
@@ -19,6 +21,8 @@ class Goal {
   final double progress;
   final List<String> milestones;
   final bool isCompleted;
+  final String? visionImagePath;
+  final String? visionColor;
   final DateTime? createdAt;
 
   Goal copyWith({
@@ -30,7 +34,10 @@ class Goal {
     double? progress,
     List<String>? milestones,
     bool? isCompleted,
+    String? visionImagePath,
+    String? visionColor,
     DateTime? createdAt,
+    bool clearVisionImage = false,
   }) {
     return Goal(
       id: id ?? this.id,
@@ -41,6 +48,8 @@ class Goal {
       progress: progress ?? this.progress,
       milestones: milestones ?? this.milestones,
       isCompleted: isCompleted ?? this.isCompleted,
+      visionImagePath: clearVisionImage ? null : visionImagePath ?? this.visionImagePath,
+      visionColor: visionColor ?? this.visionColor,
       createdAt: createdAt ?? this.createdAt,
     );
   }

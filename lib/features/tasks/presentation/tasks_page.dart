@@ -6,6 +6,7 @@ import '../../../core/providers/feature_providers.dart';
 import '../../../core/providers/providers.dart';
 import '../../../shared/widgets/empty_state_view.dart';
 import '../domain/task.dart';
+import '../domain/task_template.dart';
 
 enum _TaskFilter { all, active, done }
 
@@ -87,6 +88,110 @@ class _TasksPageState extends ConsumerState<TasksPage> {
     }
   }
 
+  Future<void> _createFromTemplate(TaskTemplate template) async {
+    await _openForm(task: template.toTask());
+  }
+
+  Future<void> _saveAsTemplate(Task task) async {
+    final TextEditingController nameController = TextEditingController(text: task.title);
+    final String? name = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Save as template'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(labelText: 'Template name'),
+          autofocus: true,
+        ),
+        actions: <Widget>[
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, nameController.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty) {
+      return;
+    }
+    try {
+      await ref.read(taskTemplateStoreProvider).saveFromTask(task, name: name);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Template "$name" saved')));
+      }
+    } catch (error) {
+      _showError(error);
+    }
+  }
+
+  Future<void> _showTemplates() async {
+    final List<TaskTemplate> templates = ref.read(taskTemplateStoreProvider).getAll();
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (BuildContext context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: <Widget>[
+            const ListTile(title: Text('Task templates'), subtitle: Text('Create a task from a template')),
+            ...templates.map(
+              (TaskTemplate template) => ListTile(
+                leading: Icon(template.isBuiltIn ? Icons.auto_awesome : Icons.bookmark_outline),
+                title: Text(template.name),
+                subtitle: Text('${template.priority.label}${template.recurrence != TaskRecurrence.none ? ' · ${template.recurrence.label}' : ''}'),
+                trailing: template.isBuiltIn
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () async {
+                          await ref.read(taskTemplateStoreProvider).delete(template.id);
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            _showTemplates();
+                          }
+                        },
+                      ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _createFromTemplate(template);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddMenu() {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (BuildContext context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(Icons.add_task),
+              title: const Text('New task'),
+              onTap: () {
+                Navigator.pop(context);
+                _openForm();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.dashboard_customize_outlined),
+              title: const Text('From template'),
+              onTap: () {
+                Navigator.pop(context);
+                _showTemplates();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Color _priorityColor(TaskPriority priority) {
     switch (priority) {
       case TaskPriority.low:
@@ -108,6 +213,11 @@ class _TasksPageState extends ConsumerState<TasksPage> {
       appBar: AppBar(
         title: const Text('Tasks'),
         actions: <Widget>[
+          IconButton(
+            tooltip: 'Templates',
+            onPressed: _showTemplates,
+            icon: const Icon(Icons.dashboard_customize_outlined),
+          ),
           IconButton(
             tooltip: _view == _TaskView.list ? 'Board view' : 'List view',
             onPressed: () => setState(() {
@@ -180,6 +290,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
                                 onToggle: () => _toggle(task),
                                 onOpen: () => _openForm(task: task),
                                 onDelete: () => _delete(task),
+                                onSaveTemplate: () => _saveAsTemplate(task),
                                 onAddSubtask: () => _openForm(
                                   task: Task(
                                     id: '',
@@ -200,6 +311,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
                                     onToggle: () => _toggle(child),
                                     onOpen: () => _openForm(task: child),
                                     onDelete: () => _delete(child),
+                                    onSaveTemplate: () => _saveAsTemplate(child),
                                   ),
                                 ),
                               ),
@@ -215,7 +327,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
         error: (Object error, StackTrace stack) => Center(child: Text('Error: $error')),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _openForm(),
+        onPressed: _showAddMenu,
         child: const Icon(Icons.add),
       ),
     );
@@ -230,6 +342,7 @@ class _TaskListTile extends StatelessWidget {
     required this.onOpen,
     required this.onDelete,
     this.onAddSubtask,
+    this.onSaveTemplate,
   });
 
   final Task task;
@@ -238,6 +351,7 @@ class _TaskListTile extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onDelete;
   final VoidCallback? onAddSubtask;
+  final VoidCallback? onSaveTemplate;
 
   @override
   Widget build(BuildContext context) {
@@ -312,6 +426,20 @@ class _TaskListTile extends StatelessWidget {
                   icon: const Icon(Icons.subdirectory_arrow_right),
                   onPressed: onAddSubtask,
                 ),
+              PopupMenuButton<String>(
+                onSelected: (String value) {
+                  if (value == 'template') {
+                    onSaveTemplate?.call();
+                  } else if (value == 'delete') {
+                    onDelete();
+                  }
+                },
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                  if (onSaveTemplate != null)
+                    const PopupMenuItem<String>(value: 'template', child: Text('Save as template')),
+                  const PopupMenuItem<String>(value: 'delete', child: Text('Delete')),
+                ],
+              ),
               Container(
                 width: 10,
                 height: 10,

@@ -119,6 +119,7 @@ class Expenses extends Table {
   DateTimeColumn get date => dateTime()();
   BoolColumn get isIncome => boolean().withDefault(const Constant(false))();
   TextColumn get tags => text().withDefault(const Constant(''))();
+  TextColumn get receiptPath => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
 
   @override
@@ -136,6 +137,8 @@ class Goals extends Table {
   RealColumn get progress => real().withDefault(const Constant(0.0))();
   TextColumn get milestones => text().withDefault(const Constant(''))();
   BoolColumn get isCompleted => boolean().withDefault(const Constant(false))();
+  TextColumn get visionImagePath => text().nullable()();
+  TextColumn get visionColor => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
 
   @override

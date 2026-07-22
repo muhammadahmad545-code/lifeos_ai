@@ -7,6 +7,7 @@ class Expense {
     required this.date,
     this.isIncome = false,
     this.tags = const <String>[],
+    this.receiptPath,
     this.createdAt,
   });
 
@@ -17,6 +18,7 @@ class Expense {
   final DateTime date;
   final bool isIncome;
   final List<String> tags;
+  final String? receiptPath;
   final DateTime? createdAt;
 
   Expense copyWith({
@@ -27,7 +29,9 @@ class Expense {
     DateTime? date,
     bool? isIncome,
     List<String>? tags,
+    String? receiptPath,
     DateTime? createdAt,
+    bool clearReceipt = false,
   }) {
     return Expense(
       id: id ?? this.id,
@@ -37,6 +41,7 @@ class Expense {
       date: date ?? this.date,
       isIncome: isIncome ?? this.isIncome,
       tags: tags ?? this.tags,
+      receiptPath: clearReceipt ? null : receiptPath ?? this.receiptPath,
       createdAt: createdAt ?? this.createdAt,
     );
   }

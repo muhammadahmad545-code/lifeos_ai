@@ -4,6 +4,12 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>LIFEOS AI needs the microphone to record voice notes.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>LIFEOS AI needs the camera to attach receipt and vision photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>LIFEOS AI needs photo access to attach images to notes, expenses, and goals.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

@@ -50,6 +50,8 @@ class GoalRepositoryImpl implements GoalRepository {
             progress: Value<double>(goal.progress.clamp(0.0, 1.0)),
             milestones: Value<String>(ListCodec.encode(goal.milestones)),
             isCompleted: Value<bool>(goal.isCompleted || goal.progress >= 1.0),
+            visionImagePath: Value<String?>(goal.visionImagePath),
+            visionColor: Value<String?>(goal.visionColor),
             createdAt: goal.createdAt ?? now,
           ),
         );
@@ -69,6 +71,8 @@ class GoalRepositoryImpl implements GoalRepository {
             progress: Value<double>(progress),
             milestones: Value<String>(ListCodec.encode(goal.milestones)),
             isCompleted: Value<bool>(goal.isCompleted || progress >= 1.0),
+            visionImagePath: Value<String?>(goal.visionImagePath),
+            visionColor: Value<String?>(goal.visionColor),
           ),
         );
     final GoalRow row = await (_db.select(_db.goals)..where((Goals tbl) => tbl.id.equals(goal.id))).getSingle();
@@ -103,6 +107,8 @@ class GoalRepositoryImpl implements GoalRepository {
       progress: row.progress,
       milestones: ListCodec.decode(row.milestones),
       isCompleted: row.isCompleted,
+      visionImagePath: row.visionImagePath,
+      visionColor: row.visionColor,
       createdAt: row.createdAt,
     );
   }

@@ -3,14 +3,13 @@
 Updated after latest build. ✅ working · 🟡 partial · ❌ not yet
 
 ## Done in this pass
-- ✅ Home weather widget (Open-Meteo + city in Settings)
-- ✅ Calendar Month / Week / Agenda views
-- ✅ Recurring tasks (daily / weekly / monthly) + auto next occurrence
-- ✅ Local task reminders (1 hour before due)
-- ✅ Notes markdown editor + preview + checklist/heading helpers
-- ✅ Focus modes (Pomodoro / Deep Work / Break) + ambient sound toggle
-- ✅ Habits streak chart + achievements counter
-- ✅ Backup export, Kanban, real Google account picker (needs Firebase OAuth config)
+- ✅ Task templates (built-in + save custom from any task)
+- ✅ Expense pie chart by category
+- ✅ Receipt photo attach (camera / gallery)
+- ✅ Notes voice recording + playback
+- ✅ Notes drawing canvas (saved into note markdown)
+- ✅ Goals vision board (colors + optional image)
+- ✅ Notes PDF export, subtasks, recurring tasks, reminders (earlier)
 
 ## Still remaining
 
@@ -33,21 +32,26 @@ Updated after latest build. ✅ working · 🟡 partial · ❌ not yet
 ### Tasks / Notes / Calendar extras
 | Feature | Status |
 |---|---|
-| Subtasks, timeline, attachments, comments, collaboration, templates | ❌ |
-| Drawing canvas, voice notes, OCR, version history, PDF export | ❌ |
+| Subtasks + templates | ✅ |
+| Timeline, attachments, comments, collaboration | ❌ |
+| Drawing canvas, voice notes, PDF export | ✅ |
+| OCR, version history | ❌ |
 | Drag-drop calendar, invitations, external sync, time blocking | ❌ |
 
 ### Other modules
 | Feature | Status |
 |---|---|
-| Receipt scanner, vision board, HealthKit/Google Fit | ❌ |
+| Receipt photo attach | ✅ |
+| Receipt OCR scanner | ❌ |
+| Vision board | ✅ |
+| HealthKit/Google Fit | ❌ |
 | Website blocking ready hooks | ❌ |
 | FCM push, Crashlytics live, Remote Config | ❌ |
 | Lottie / glassmorphism design pack | ❌ |
 | Full test suites | 🟡 basic unit tests |
 
 ## Next priority
-1. Subtasks + task templates
-2. Notes PDF export
-3. Expense charts polish + receipt photo attach
+1. Notes version history
+2. Calendar time blocking
+3. Simple OCR / receipt text extract (on-device if possible)
 4. Firestore sync once Firebase is configured

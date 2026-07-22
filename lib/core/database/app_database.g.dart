@@ -4102,6 +4102,17 @@ class $ExpensesTable extends Expenses
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _receiptPathMeta = const VerificationMeta(
+    'receiptPath',
+  );
+  @override
+  late final GeneratedColumn<String> receiptPath = GeneratedColumn<String>(
+    'receipt_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4123,6 +4134,7 @@ class $ExpensesTable extends Expenses
     date,
     isIncome,
     tags,
+    receiptPath,
     createdAt,
   ];
   @override
@@ -4197,6 +4209,15 @@ class $ExpensesTable extends Expenses
         tags.isAcceptableOrUnknown(data['tags']!, _tagsMeta),
       );
     }
+    if (data.containsKey('receipt_path')) {
+      context.handle(
+        _receiptPathMeta,
+        receiptPath.isAcceptableOrUnknown(
+          data['receipt_path']!,
+          _receiptPathMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -4246,6 +4267,10 @@ class $ExpensesTable extends Expenses
         DriftSqlType.string,
         data['${effectivePrefix}tags'],
       )!,
+      receiptPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}receipt_path'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -4268,6 +4293,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
   final DateTime date;
   final bool isIncome;
   final String tags;
+  final String? receiptPath;
   final DateTime createdAt;
   const ExpenseRow({
     required this.id,
@@ -4278,6 +4304,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
     required this.date,
     required this.isIncome,
     required this.tags,
+    this.receiptPath,
     required this.createdAt,
   });
   @override
@@ -4291,6 +4318,9 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
     map['date'] = Variable<DateTime>(date);
     map['is_income'] = Variable<bool>(isIncome);
     map['tags'] = Variable<String>(tags);
+    if (!nullToAbsent || receiptPath != null) {
+      map['receipt_path'] = Variable<String>(receiptPath);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -4305,6 +4335,9 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
       date: Value(date),
       isIncome: Value(isIncome),
       tags: Value(tags),
+      receiptPath: receiptPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receiptPath),
       createdAt: Value(createdAt),
     );
   }
@@ -4323,6 +4356,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
       date: serializer.fromJson<DateTime>(json['date']),
       isIncome: serializer.fromJson<bool>(json['isIncome']),
       tags: serializer.fromJson<String>(json['tags']),
+      receiptPath: serializer.fromJson<String?>(json['receiptPath']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -4338,6 +4372,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
       'date': serializer.toJson<DateTime>(date),
       'isIncome': serializer.toJson<bool>(isIncome),
       'tags': serializer.toJson<String>(tags),
+      'receiptPath': serializer.toJson<String?>(receiptPath),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -4351,6 +4386,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
     DateTime? date,
     bool? isIncome,
     String? tags,
+    Value<String?> receiptPath = const Value.absent(),
     DateTime? createdAt,
   }) => ExpenseRow(
     id: id ?? this.id,
@@ -4361,6 +4397,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
     date: date ?? this.date,
     isIncome: isIncome ?? this.isIncome,
     tags: tags ?? this.tags,
+    receiptPath: receiptPath.present ? receiptPath.value : this.receiptPath,
     createdAt: createdAt ?? this.createdAt,
   );
   ExpenseRow copyWithCompanion(ExpensesCompanion data) {
@@ -4375,6 +4412,9 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
       date: data.date.present ? data.date.value : this.date,
       isIncome: data.isIncome.present ? data.isIncome.value : this.isIncome,
       tags: data.tags.present ? data.tags.value : this.tags,
+      receiptPath: data.receiptPath.present
+          ? data.receiptPath.value
+          : this.receiptPath,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -4390,6 +4430,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
           ..write('date: $date, ')
           ..write('isIncome: $isIncome, ')
           ..write('tags: $tags, ')
+          ..write('receiptPath: $receiptPath, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -4405,6 +4446,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
     date,
     isIncome,
     tags,
+    receiptPath,
     createdAt,
   );
   @override
@@ -4419,6 +4461,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
           other.date == this.date &&
           other.isIncome == this.isIncome &&
           other.tags == this.tags &&
+          other.receiptPath == this.receiptPath &&
           other.createdAt == this.createdAt);
 }
 
@@ -4431,6 +4474,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
   final Value<DateTime> date;
   final Value<bool> isIncome;
   final Value<String> tags;
+  final Value<String?> receiptPath;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const ExpensesCompanion({
@@ -4442,6 +4486,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     this.date = const Value.absent(),
     this.isIncome = const Value.absent(),
     this.tags = const Value.absent(),
+    this.receiptPath = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -4454,6 +4499,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     required DateTime date,
     this.isIncome = const Value.absent(),
     this.tags = const Value.absent(),
+    this.receiptPath = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -4472,6 +4518,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     Expression<DateTime>? date,
     Expression<bool>? isIncome,
     Expression<String>? tags,
+    Expression<String>? receiptPath,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -4484,6 +4531,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
       if (date != null) 'date': date,
       if (isIncome != null) 'is_income': isIncome,
       if (tags != null) 'tags': tags,
+      if (receiptPath != null) 'receipt_path': receiptPath,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -4498,6 +4546,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     Value<DateTime>? date,
     Value<bool>? isIncome,
     Value<String>? tags,
+    Value<String?>? receiptPath,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -4510,6 +4559,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
       date: date ?? this.date,
       isIncome: isIncome ?? this.isIncome,
       tags: tags ?? this.tags,
+      receiptPath: receiptPath ?? this.receiptPath,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -4542,6 +4592,9 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     if (tags.present) {
       map['tags'] = Variable<String>(tags.value);
     }
+    if (receiptPath.present) {
+      map['receipt_path'] = Variable<String>(receiptPath.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -4562,6 +4615,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
           ..write('date: $date, ')
           ..write('isIncome: $isIncome, ')
           ..write('tags: $tags, ')
+          ..write('receiptPath: $receiptPath, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -4673,6 +4727,28 @@ class $GoalsTable extends Goals with TableInfo<$GoalsTable, GoalRow> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _visionImagePathMeta = const VerificationMeta(
+    'visionImagePath',
+  );
+  @override
+  late final GeneratedColumn<String> visionImagePath = GeneratedColumn<String>(
+    'vision_image_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _visionColorMeta = const VerificationMeta(
+    'visionColor',
+  );
+  @override
+  late final GeneratedColumn<String> visionColor = GeneratedColumn<String>(
+    'vision_color',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4695,6 +4771,8 @@ class $GoalsTable extends Goals with TableInfo<$GoalsTable, GoalRow> {
     progress,
     milestones,
     isCompleted,
+    visionImagePath,
+    visionColor,
     createdAt,
   ];
   @override
@@ -4774,6 +4852,24 @@ class $GoalsTable extends Goals with TableInfo<$GoalsTable, GoalRow> {
         ),
       );
     }
+    if (data.containsKey('vision_image_path')) {
+      context.handle(
+        _visionImagePathMeta,
+        visionImagePath.isAcceptableOrUnknown(
+          data['vision_image_path']!,
+          _visionImagePathMeta,
+        ),
+      );
+    }
+    if (data.containsKey('vision_color')) {
+      context.handle(
+        _visionColorMeta,
+        visionColor.isAcceptableOrUnknown(
+          data['vision_color']!,
+          _visionColorMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -4827,6 +4923,14 @@ class $GoalsTable extends Goals with TableInfo<$GoalsTable, GoalRow> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_completed'],
       )!,
+      visionImagePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vision_image_path'],
+      ),
+      visionColor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vision_color'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -4850,6 +4954,8 @@ class GoalRow extends DataClass implements Insertable<GoalRow> {
   final double progress;
   final String milestones;
   final bool isCompleted;
+  final String? visionImagePath;
+  final String? visionColor;
   final DateTime createdAt;
   const GoalRow({
     required this.id,
@@ -4861,6 +4967,8 @@ class GoalRow extends DataClass implements Insertable<GoalRow> {
     required this.progress,
     required this.milestones,
     required this.isCompleted,
+    this.visionImagePath,
+    this.visionColor,
     required this.createdAt,
   });
   @override
@@ -4879,6 +4987,12 @@ class GoalRow extends DataClass implements Insertable<GoalRow> {
     map['progress'] = Variable<double>(progress);
     map['milestones'] = Variable<String>(milestones);
     map['is_completed'] = Variable<bool>(isCompleted);
+    if (!nullToAbsent || visionImagePath != null) {
+      map['vision_image_path'] = Variable<String>(visionImagePath);
+    }
+    if (!nullToAbsent || visionColor != null) {
+      map['vision_color'] = Variable<String>(visionColor);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -4898,6 +5012,12 @@ class GoalRow extends DataClass implements Insertable<GoalRow> {
       progress: Value(progress),
       milestones: Value(milestones),
       isCompleted: Value(isCompleted),
+      visionImagePath: visionImagePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(visionImagePath),
+      visionColor: visionColor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(visionColor),
       createdAt: Value(createdAt),
     );
   }
@@ -4917,6 +5037,8 @@ class GoalRow extends DataClass implements Insertable<GoalRow> {
       progress: serializer.fromJson<double>(json['progress']),
       milestones: serializer.fromJson<String>(json['milestones']),
       isCompleted: serializer.fromJson<bool>(json['isCompleted']),
+      visionImagePath: serializer.fromJson<String?>(json['visionImagePath']),
+      visionColor: serializer.fromJson<String?>(json['visionColor']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -4933,6 +5055,8 @@ class GoalRow extends DataClass implements Insertable<GoalRow> {
       'progress': serializer.toJson<double>(progress),
       'milestones': serializer.toJson<String>(milestones),
       'isCompleted': serializer.toJson<bool>(isCompleted),
+      'visionImagePath': serializer.toJson<String?>(visionImagePath),
+      'visionColor': serializer.toJson<String?>(visionColor),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -4947,6 +5071,8 @@ class GoalRow extends DataClass implements Insertable<GoalRow> {
     double? progress,
     String? milestones,
     bool? isCompleted,
+    Value<String?> visionImagePath = const Value.absent(),
+    Value<String?> visionColor = const Value.absent(),
     DateTime? createdAt,
   }) => GoalRow(
     id: id ?? this.id,
@@ -4958,6 +5084,10 @@ class GoalRow extends DataClass implements Insertable<GoalRow> {
     progress: progress ?? this.progress,
     milestones: milestones ?? this.milestones,
     isCompleted: isCompleted ?? this.isCompleted,
+    visionImagePath: visionImagePath.present
+        ? visionImagePath.value
+        : this.visionImagePath,
+    visionColor: visionColor.present ? visionColor.value : this.visionColor,
     createdAt: createdAt ?? this.createdAt,
   );
   GoalRow copyWithCompanion(GoalsCompanion data) {
@@ -4979,6 +5109,12 @@ class GoalRow extends DataClass implements Insertable<GoalRow> {
       isCompleted: data.isCompleted.present
           ? data.isCompleted.value
           : this.isCompleted,
+      visionImagePath: data.visionImagePath.present
+          ? data.visionImagePath.value
+          : this.visionImagePath,
+      visionColor: data.visionColor.present
+          ? data.visionColor.value
+          : this.visionColor,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -4995,6 +5131,8 @@ class GoalRow extends DataClass implements Insertable<GoalRow> {
           ..write('progress: $progress, ')
           ..write('milestones: $milestones, ')
           ..write('isCompleted: $isCompleted, ')
+          ..write('visionImagePath: $visionImagePath, ')
+          ..write('visionColor: $visionColor, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -5011,6 +5149,8 @@ class GoalRow extends DataClass implements Insertable<GoalRow> {
     progress,
     milestones,
     isCompleted,
+    visionImagePath,
+    visionColor,
     createdAt,
   );
   @override
@@ -5026,6 +5166,8 @@ class GoalRow extends DataClass implements Insertable<GoalRow> {
           other.progress == this.progress &&
           other.milestones == this.milestones &&
           other.isCompleted == this.isCompleted &&
+          other.visionImagePath == this.visionImagePath &&
+          other.visionColor == this.visionColor &&
           other.createdAt == this.createdAt);
 }
 
@@ -5039,6 +5181,8 @@ class GoalsCompanion extends UpdateCompanion<GoalRow> {
   final Value<double> progress;
   final Value<String> milestones;
   final Value<bool> isCompleted;
+  final Value<String?> visionImagePath;
+  final Value<String?> visionColor;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const GoalsCompanion({
@@ -5051,6 +5195,8 @@ class GoalsCompanion extends UpdateCompanion<GoalRow> {
     this.progress = const Value.absent(),
     this.milestones = const Value.absent(),
     this.isCompleted = const Value.absent(),
+    this.visionImagePath = const Value.absent(),
+    this.visionColor = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -5064,6 +5210,8 @@ class GoalsCompanion extends UpdateCompanion<GoalRow> {
     this.progress = const Value.absent(),
     this.milestones = const Value.absent(),
     this.isCompleted = const Value.absent(),
+    this.visionImagePath = const Value.absent(),
+    this.visionColor = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -5081,6 +5229,8 @@ class GoalsCompanion extends UpdateCompanion<GoalRow> {
     Expression<double>? progress,
     Expression<String>? milestones,
     Expression<bool>? isCompleted,
+    Expression<String>? visionImagePath,
+    Expression<String>? visionColor,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -5094,6 +5244,8 @@ class GoalsCompanion extends UpdateCompanion<GoalRow> {
       if (progress != null) 'progress': progress,
       if (milestones != null) 'milestones': milestones,
       if (isCompleted != null) 'is_completed': isCompleted,
+      if (visionImagePath != null) 'vision_image_path': visionImagePath,
+      if (visionColor != null) 'vision_color': visionColor,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -5109,6 +5261,8 @@ class GoalsCompanion extends UpdateCompanion<GoalRow> {
     Value<double>? progress,
     Value<String>? milestones,
     Value<bool>? isCompleted,
+    Value<String?>? visionImagePath,
+    Value<String?>? visionColor,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -5122,6 +5276,8 @@ class GoalsCompanion extends UpdateCompanion<GoalRow> {
       progress: progress ?? this.progress,
       milestones: milestones ?? this.milestones,
       isCompleted: isCompleted ?? this.isCompleted,
+      visionImagePath: visionImagePath ?? this.visionImagePath,
+      visionColor: visionColor ?? this.visionColor,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -5157,6 +5313,12 @@ class GoalsCompanion extends UpdateCompanion<GoalRow> {
     if (isCompleted.present) {
       map['is_completed'] = Variable<bool>(isCompleted.value);
     }
+    if (visionImagePath.present) {
+      map['vision_image_path'] = Variable<String>(visionImagePath.value);
+    }
+    if (visionColor.present) {
+      map['vision_color'] = Variable<String>(visionColor.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -5178,6 +5340,8 @@ class GoalsCompanion extends UpdateCompanion<GoalRow> {
           ..write('progress: $progress, ')
           ..write('milestones: $milestones, ')
           ..write('isCompleted: $isCompleted, ')
+          ..write('visionImagePath: $visionImagePath, ')
+          ..write('visionColor: $visionColor, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -9942,6 +10106,7 @@ typedef $$ExpensesTableCreateCompanionBuilder =
       required DateTime date,
       Value<bool> isIncome,
       Value<String> tags,
+      Value<String?> receiptPath,
       required DateTime createdAt,
       Value<int> rowid,
     });
@@ -9955,6 +10120,7 @@ typedef $$ExpensesTableUpdateCompanionBuilder =
       Value<DateTime> date,
       Value<bool> isIncome,
       Value<String> tags,
+      Value<String?> receiptPath,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -10005,6 +10171,11 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<String> get tags => $composableBuilder(
     column: $table.tags,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receiptPath => $composableBuilder(
+    column: $table.receiptPath,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10063,6 +10234,11 @@ class $$ExpensesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get receiptPath => $composableBuilder(
+    column: $table.receiptPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -10103,6 +10279,11 @@ class $$ExpensesTableAnnotationComposer
 
   GeneratedColumn<String> get tags =>
       $composableBuilder(column: $table.tags, builder: (column) => column);
+
+  GeneratedColumn<String> get receiptPath => $composableBuilder(
+    column: $table.receiptPath,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -10147,6 +10328,7 @@ class $$ExpensesTableTableManager
                 Value<DateTime> date = const Value.absent(),
                 Value<bool> isIncome = const Value.absent(),
                 Value<String> tags = const Value.absent(),
+                Value<String?> receiptPath = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpensesCompanion(
@@ -10158,6 +10340,7 @@ class $$ExpensesTableTableManager
                 date: date,
                 isIncome: isIncome,
                 tags: tags,
+                receiptPath: receiptPath,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -10171,6 +10354,7 @@ class $$ExpensesTableTableManager
                 required DateTime date,
                 Value<bool> isIncome = const Value.absent(),
                 Value<String> tags = const Value.absent(),
+                Value<String?> receiptPath = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => ExpensesCompanion.insert(
@@ -10182,6 +10366,7 @@ class $$ExpensesTableTableManager
                 date: date,
                 isIncome: isIncome,
                 tags: tags,
+                receiptPath: receiptPath,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -10218,6 +10403,8 @@ typedef $$GoalsTableCreateCompanionBuilder =
       Value<double> progress,
       Value<String> milestones,
       Value<bool> isCompleted,
+      Value<String?> visionImagePath,
+      Value<String?> visionColor,
       required DateTime createdAt,
       Value<int> rowid,
     });
@@ -10232,6 +10419,8 @@ typedef $$GoalsTableUpdateCompanionBuilder =
       Value<double> progress,
       Value<String> milestones,
       Value<bool> isCompleted,
+      Value<String?> visionImagePath,
+      Value<String?> visionColor,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -10286,6 +10475,16 @@ class $$GoalsTableFilterComposer extends Composer<_$AppDatabase, $GoalsTable> {
 
   ColumnFilters<bool> get isCompleted => $composableBuilder(
     column: $table.isCompleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get visionImagePath => $composableBuilder(
+    column: $table.visionImagePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get visionColor => $composableBuilder(
+    column: $table.visionColor,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10349,6 +10548,16 @@ class $$GoalsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get visionImagePath => $composableBuilder(
+    column: $table.visionImagePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get visionColor => $composableBuilder(
+    column: $table.visionColor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -10399,6 +10608,16 @@ class $$GoalsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get visionImagePath => $composableBuilder(
+    column: $table.visionImagePath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get visionColor => $composableBuilder(
+    column: $table.visionColor,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
@@ -10440,6 +10659,8 @@ class $$GoalsTableTableManager
                 Value<double> progress = const Value.absent(),
                 Value<String> milestones = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
+                Value<String?> visionImagePath = const Value.absent(),
+                Value<String?> visionColor = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => GoalsCompanion(
@@ -10452,6 +10673,8 @@ class $$GoalsTableTableManager
                 progress: progress,
                 milestones: milestones,
                 isCompleted: isCompleted,
+                visionImagePath: visionImagePath,
+                visionColor: visionColor,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -10466,6 +10689,8 @@ class $$GoalsTableTableManager
                 Value<double> progress = const Value.absent(),
                 Value<String> milestones = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
+                Value<String?> visionImagePath = const Value.absent(),
+                Value<String?> visionColor = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => GoalsCompanion.insert(
@@ -10478,6 +10703,8 @@ class $$GoalsTableTableManager
                 progress: progress,
                 milestones: milestones,
                 isCompleted: isCompleted,
+                visionImagePath: visionImagePath,
+                visionColor: visionColor,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
