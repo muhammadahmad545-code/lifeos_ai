@@ -1,0 +1,227 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:basalt/basalt.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../data/backup.dart';
+import '../logic/dates.dart';
+import '../providers.dart';
+import '../services/app_lock.dart';
+import '../services/reminders.dart';
+import 'common.dart';
+
+final _notificationStatusProvider = FutureProvider.autoDispose<(bool, bool)>((ref) async {
+  final r = Reminders.instance;
+  return (await r.notificationsAllowed(), await r.exactAlarmsAllowed());
+});
+
+class SettingsPage extends ConsumerStatefulWidget {
+  const SettingsPage({super.key});
+
+  @override
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends ConsumerState<SettingsPage> {
+  bool _busy = false;
+
+  Future<void> _toggleLock(bool on) async {
+    final settings = ref.read(settingsProvider.notifier);
+    if (!on) {
+      await settings.setAppLock(false);
+      return;
+    }
+    if (!await AppLock.available()) {
+      if (mounted) BToast.show(context, 'Set a screen lock (PIN, pattern or fingerprint) on this phone first');
+      return;
+    }
+    // Confirm it works before turning it on, so nobody gets locked out.
+    if (await AppLock.authenticate()) {
+      await settings.setAppLock(true);
+      if (mounted) BToast.show(context, 'App lock is on');
+    }
+  }
+
+  Future<void> _export() async {
+    setState(() => _busy = true);
+    try {
+      final json = await Backup(ref.read(dbProvider)).export();
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save LifeOS backup',
+        fileName: 'lifeos-backup-${dayKey(DateTime.now())}.json',
+        bytes: Uint8List.fromList(utf8.encode(json)),
+      );
+      if (mounted && path != null) BToast.show(context, 'Backup saved');
+    } catch (e) {
+      if (mounted) BToast.show(context, 'Could not save the backup: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _import() async {
+    final FilePickerResult? picked;
+    try {
+      picked = await FilePicker.platform.pickFiles(type: FileType.any, withData: true);
+    } catch (e) {
+      if (mounted) BToast.show(context, 'Could not open the file: $e');
+      return;
+    }
+    final bytes = picked?.files.single.bytes;
+    if (bytes == null || !mounted) return;
+    final String text;
+    final Map<String, int> counts;
+    try {
+      text = utf8.decode(bytes);
+      counts = Backup.inspect(text);
+    } on BackupFormatException catch (e) {
+      BToast.show(context, e.message);
+      return;
+    } on FormatException {
+      BToast.show(context, 'This file is not a LifeOS backup.');
+      return;
+    }
+    final total = counts.values.fold<int>(0, (s, v) => s + v);
+    if (total == 0) {
+      BToast.show(context, 'This backup is empty');
+      return;
+    }
+    final ok = await bConfirm(
+      context,
+      title: 'Import backup?',
+      message: '$total items will be added. Items that already exist are updated, nothing is deleted.',
+      confirmLabel: 'Import',
+    );
+    if (!ok || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final n = await Backup(ref.read(dbProvider)).import(text);
+      await Reminders.instance.syncAll(await ref.read(repoProvider).allTasks());
+      if (mounted) BToast.show(context, 'Imported $n items');
+    } on BackupFormatException catch (e) {
+      if (mounted) BToast.show(context, e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.basalt;
+    final s = ref.watch(settingsProvider);
+    final status = ref.watch(_notificationStatusProvider).valueOrNull;
+
+    return SubPage(
+      title: 'Settings',
+      children: [
+        const BSectionTitle('Appearance'),
+        BCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Theme', style: BasaltType.label.copyWith(color: p.textMuted)),
+              const SizedBox(height: Gap.sm),
+              ChipWrap(
+                children: [
+                  for (final (mode, label) in [(ThemeMode.system, 'System'), (ThemeMode.light, 'Light'), (ThemeMode.dark, 'Dark')])
+                    BChip(
+                      label: label,
+                      selected: s.themeMode == mode,
+                      onTap: () => ref.read(settingsProvider.notifier).setThemeMode(mode),
+                    ),
+                ],
+              ),
+              const SizedBox(height: Gap.lg),
+              Text('Currency', style: BasaltType.label.copyWith(color: p.textMuted)),
+              const SizedBox(height: Gap.sm),
+              ChipWrap(
+                children: [
+                  for (final c in kCurrencies)
+                    BChip(label: c, selected: s.currency == c, onTap: () => ref.read(settingsProvider.notifier).setCurrency(c)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        BGroup(
+          title: 'Reminders',
+          children: [
+            BListRow(
+              icon: Icons.notifications_none_rounded,
+              title: 'Notifications',
+              subtitle: status == null
+                  ? 'Checking…'
+                  : (status.$1 ? 'Allowed' : 'Off. Tap to allow task reminders and the focus alarm.'),
+              trailing: status != null && status.$1 ? Icon(Icons.check_rounded, color: p.success) : null,
+              onTap: () async {
+                await Reminders.instance.ensurePermission();
+                ref.invalidate(_notificationStatusProvider);
+              },
+            ),
+            BListRow(
+              icon: Icons.alarm_rounded,
+              title: 'On-time delivery',
+              subtitle: status == null
+                  ? 'Checking…'
+                  : (status.$2 ? 'Exact alarms allowed: reminders arrive on the minute' : 'Reminders may arrive a few minutes late'),
+            ),
+            BListRow(
+              icon: Icons.send_outlined,
+              title: 'Send a test notification',
+              onTap: () async {
+                if (await Reminders.instance.ensurePermission()) {
+                  await Reminders.instance.showTest();
+                } else if (context.mounted) {
+                  BToast.show(context, 'Notifications are off for LifeOS in system settings');
+                }
+                ref.invalidate(_notificationStatusProvider);
+              },
+            ),
+          ],
+        ),
+        BGroup(
+          title: 'Privacy',
+          children: [
+            SwitchRow(
+              icon: Icons.lock_outline_rounded,
+              title: 'App lock',
+              subtitle: 'Ask for your fingerprint, face or phone PIN when LifeOS opens',
+              value: s.appLock,
+              onChanged: _toggleLock,
+            ),
+          ],
+        ),
+        BGroup(
+          title: 'Your data',
+          children: [
+            BListRow(
+              icon: Icons.upload_file_rounded,
+              title: 'Export backup',
+              subtitle: 'Save everything as a JSON file',
+              onTap: _busy ? null : _export,
+              trailing: _busy ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: p.accent)) : null,
+            ),
+            BListRow(
+              icon: Icons.download_rounded,
+              title: 'Import backup',
+              subtitle: 'Merge a LifeOS backup into this phone',
+              onTap: _busy ? null : _import,
+            ),
+          ],
+        ),
+        const SizedBox(height: Gap.sm),
+        const UpdatesSection(),
+        const SizedBox(height: Gap.lg),
+        Text(
+          'LifeOS keeps everything on this phone. No account, no cloud, no tracking. '
+          'The only network use is checking GitHub for app updates.',
+          textAlign: TextAlign.center,
+          style: BasaltType.caption.copyWith(color: p.textFaint),
+        ),
+      ],
+    );
+  }
+}

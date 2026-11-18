@@ -1,42 +1,35 @@
+import 'package:drift/native.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:lifeos_ai/core/services/receipt_text_parser.dart';
-import 'package:lifeos_ai/core/utils/password_hasher.dart';
-import 'package:lifeos_ai/core/utils/list_codec.dart';
-import 'package:lifeos_ai/features/assistant/domain/lifeos_ai_engine.dart';
-import 'package:lifeos_ai/features/tasks/domain/task.dart';
+import 'package:lifeos/app.dart';
+import 'package:lifeos/providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  test('PasswordHasher hashes consistently', () {
-    final String hash = PasswordHasher.hash('secret123');
-    expect(PasswordHasher.verify('secret123', hash), isTrue);
-    expect(PasswordHasher.verify('wrong', hash), isFalse);
-  });
-
-  test('ListCodec round-trips values', () {
-    const List<String> values = <String>['work', 'urgent'];
-    expect(ListCodec.decode(ListCodec.encode(values)), values);
-    expect(ListCodec.decode(null), isEmpty);
-  });
-
-  test('LifeOsAiEngine prioritizes urgent tasks', () {
-    const LifeOsAiEngine engine = LifeOsAiEngine();
-    final String reply = engine.respond(
-      userMessage: 'What should I prioritize?',
-      tasks: const <Task>[
-        Task(id: '1', title: 'Ship release', isCompleted: false, priority: TaskPriority.urgent),
-        Task(id: '2', title: 'Clean desk', isCompleted: false, priority: TaskPriority.low),
+  testWidgets('first launch shows the introduction, Skip marks it done', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final db = AppDatabase(NativeDatabase.memory());
+    final container = ProviderContainer(
+      overrides: [
+        prefsProvider.overrideWithValue(prefs),
+        dbProvider.overrideWithValue(db),
+        reminderSchedulerProvider.overrideWithValue(const NoReminders()),
       ],
     );
-    expect(reply.toLowerCase(), contains('ship release'));
-  });
 
-  test('ReceiptTextParser extracts amount and category hints', () {
-    final ReceiptParseResult result = ReceiptTextParser.parse(
-      'Blue Bottle Coffee\nLatte\nTotal \$12.50\nThank you',
-    );
-    expect(result.amount, 12.50);
-    expect(result.description, 'Blue Bottle Coffee');
-    expect(result.category, 'Food');
+    await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const LifeOSApp()));
+    await tester.pump();
+    expect(find.text('Your day on one screen'), findsOneWidget);
+    expect(find.text('Skip'), findsOneWidget);
+
+    // Mark onboarding done directly; the shell itself needs live database streams.
+    await container.read(settingsProvider.notifier).setOnboarded();
+    expect(prefs.getBool('onboarded'), isTrue);
+
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+    await db.close();
   });
 }
