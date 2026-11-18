@@ -26,12 +26,9 @@ Future<void> toggleTask(BuildContext context, WidgetRef ref, TaskRow t) async {
   final done = !t.isCompleted;
   await repo.setTaskDone(t.id, done);
   if (done && context.mounted) {
-    BToast.show(
-      context,
-      t.recurrence != 'none' ? 'Done. Next one scheduled.' : 'Task completed',
-      actionLabel: 'Undo',
-      onAction: () => repo.setTaskDone(t.id, false),
-    );
+    // No undo action here: snackbars with actions never time out while accessibility
+    // services run. Completed tasks can be reopened from the Done view.
+    BToast.show(context, t.recurrence != 'none' ? 'Done. The next one is scheduled.' : 'Task completed');
   }
 }
 

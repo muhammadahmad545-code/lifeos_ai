@@ -25,6 +25,13 @@ android {
         multiDexEnabled = true
     }
 
+    // Compress native libraries inside the APK: a much smaller download for a sideloaded app.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     // CI provides the suite's release key through environment variables; local builds fall back to the debug key.
     signingConfigs {
         create("release") {

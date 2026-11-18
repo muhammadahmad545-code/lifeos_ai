@@ -32,7 +32,7 @@ jobs:
       - run: flutter pub get
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq libsqlite3-dev
       - run: dart run build_runner build --delete-conflicting-outputs
-      - run: flutter analyze --no-fatal-infos
+      - run: flutter analyze
       - run: flutter test
 
   apk:

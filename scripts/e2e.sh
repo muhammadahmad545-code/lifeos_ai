@@ -1,7 +1,13 @@
 # End-to-end checks for LifeOS. Sourced by scripts/smoke.sh after the tab tour, with the app
 # open on Home. Uses the helpers defined there (tap_text, type_text, expect, shot, ...).
 
-home_tab() { tap_text "Home"; sleep 2; }
+# Scroll the current screen up by about half its height (works at any emulator resolution).
+swipe_up() {
+  local size w h
+  size=$(adb shell wm size | tr -d '\r' | awk '{print $NF}' | tail -1)
+  w=${size%x*}; h=${size#*x}
+  adb shell input swipe $((w / 2)) $((h * 3 / 4)) $((w / 2)) $((h / 4)) 400; sleep 1
+}
 
 # --- Tasks: create, complete, then find it with search ---------------------------------------
 tap_text "Tasks"; sleep 2
@@ -25,7 +31,8 @@ tap_text "Open"; sleep 1
 tap_text "New task"; sleep 2
 tap_class EditText 0; type_text "Renew passport"; hide_keyboard
 tap_text "Next week"; sleep 1
-scroll_to "1 day before"; tap_text "1 day before"; sleep 1
+has_text "1 day before" || swipe_up
+tap_text "1 day before"; sleep 1
 tap_text "Save"; sleep 3
 expect "Renew passport" 10 "task with a reminder is saved"
 expect "Reminder" 5 "task row shows its reminder"
@@ -79,6 +86,7 @@ shot e2e-assistant
 back
 
 # --- Settings renders --------------------------------------------------------------------------
+tap_text "Home"; sleep 2
 tap_text "Settings"; sleep 2
 expect "Export backup" 5 "settings show backup options"
 shot e2e-settings

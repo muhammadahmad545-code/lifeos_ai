@@ -1,6 +1,7 @@
 import 'package:basalt/basalt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../logic/dates.dart';
 import '../logic/rules.dart';
@@ -58,7 +59,7 @@ class HomePage extends ConsumerWidget {
 
     return BPage(
       title: 'Today',
-      subtitle: '${greeting(now)} · ${fmtDate(now, now: now)}',
+      subtitle: '${greeting(now)} · ${DateFormat('MMM d').format(now)}',
       actions: [
         IconAction(icon: Icons.search_rounded, label: 'Search', onPressed: () => push(context, const SearchPage())),
         IconAction(icon: Icons.settings_outlined, label: 'Settings', onPressed: () => push(context, const SettingsPage())),
@@ -72,7 +73,6 @@ class HomePage extends ConsumerWidget {
                 label: 'Tasks',
                 value: '${due.length}',
                 hint: doneToday > 0 ? '$doneToday done' : 'to do',
-                icon: Icons.checklist_rounded,
                 onTap: () => tabs.index = 1,
               ),
             ),
@@ -82,7 +82,6 @@ class HomePage extends ConsumerWidget {
                 label: 'Habits',
                 value: habits.isEmpty ? '–' : '$habitsDone/${habits.length}',
                 hint: 'done',
-                icon: Icons.local_fire_department_outlined,
                 onTap: () => push(context, const HabitsPage()),
               ),
             ),
@@ -92,7 +91,6 @@ class HomePage extends ConsumerWidget {
                 label: 'Focus',
                 value: '$focusToday',
                 hint: 'minutes',
-                icon: Icons.timer_outlined,
                 onTap: () => push(context, const FocusPage()),
               ),
             ),
