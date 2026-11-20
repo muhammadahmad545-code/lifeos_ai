@@ -88,8 +88,10 @@ back
 # --- Settings renders --------------------------------------------------------------------------
 tap_text "Home"; sleep 2
 tap_text "Settings"; sleep 2
-expect "Export backup" 5 "settings show backup options"
 shot e2e-settings
+swipe_up; swipe_up
+expect "Export backup" 5 "settings show backup options"
+shot e2e-settings-data
 back
 
 # --- Calendar: add an event for today ----------------------------------------------------------
