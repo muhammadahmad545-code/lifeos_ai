@@ -19,7 +19,8 @@ class Backup {
 
   final AppDatabase db;
 
-  static const int formatVersion = 1;
+  /// 1: Plania 2.0. 2: adds recurring expenses and income (2.1). Older formats still import.
+  static const int formatVersion = 2;
 
   Future<String> export() async {
     final data = <String, Object?>{
@@ -34,6 +35,7 @@ class Backup {
       'journal': [for (final r in await db.select(db.journalEntries).get()) r.toJson()],
       'expenses': [for (final r in await db.select(db.expenses).get()) r.toJson()],
       'budgets': [for (final r in await db.select(db.budgets).get()) r.toJson()],
+      'recurring': [for (final r in await db.select(db.recurringEntries).get()) r.toJson()],
       'goals': [for (final r in await db.select(db.goals).get()) r.toJson()],
       'focus': [for (final r in await db.select(db.focusSessions).get()) r.toJson()],
     };
@@ -58,6 +60,7 @@ class Backup {
     'journal',
     'expenses',
     'budgets',
+    'recurring',
     'goals',
     'focus',
   ];
@@ -71,6 +74,9 @@ class Backup {
     }
     if (data is! Map || data['app'] != 'lifeos') {
       throw const BackupFormatException('This file is not a Plania backup.');
+    }
+    if (data['encrypted'] == true) {
+      throw const BackupFormatException('This backup is protected with a passphrase.');
     }
     final format = data['format'];
     if (format is! int || format > formatVersion) {
@@ -112,6 +118,7 @@ class Backup {
       await rows(db.journalEntries, 'journal', JournalEntryRow.fromJson);
       await rows(db.expenses, 'expenses', ExpenseRow.fromJson);
       await rows(db.budgets, 'budgets', BudgetRow.fromJson);
+      await rows(db.recurringEntries, 'recurring', RecurringRow.fromJson);
       await rows(db.goals, 'goals', GoalRow.fromJson);
       await rows(db.focusSessions, 'focus', FocusSessionRow.fromJson);
     });

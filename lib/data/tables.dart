@@ -123,6 +123,30 @@ class Expenses extends Table {
   TextColumn get tags => text().withDefault(const Constant(''))();
   TextColumn get receiptPath => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
+  // The recurring rule that posted this entry, if any. Added in schema 6.
+  TextColumn get recurringId => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// A repeating expense or income (rent, salary, subscriptions). Occurrence `i` falls on
+/// [startDate] plus `i` weeks or months; [nextIndex] is the first one not posted yet.
+/// Added in schema 6.
+@DataClassName('RecurringRow')
+class RecurringEntries extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get description => text()();
+  RealColumn get amount => real()();
+  TextColumn get category => text()();
+  BoolColumn get isIncome => boolean().withDefault(const Constant(false))();
+  // 'monthly' or 'weekly'.
+  TextColumn get frequency => text()();
+  DateTimeColumn get startDate => dateTime()();
+  IntColumn get nextIndex => integer().withDefault(const Constant(0))();
+  BoolColumn get isPaused => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

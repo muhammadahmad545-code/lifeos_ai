@@ -25,7 +25,8 @@ String recurrenceLabel(String r) => switch (r) {
       _ => 'Never',
     };
 
-DateTime _addMonthsClamped(DateTime base, int months) {
+/// [base] plus [months], clamped to the end of short months (Jan 31 -> Feb 28/29).
+DateTime addMonthsClamped(DateTime base, int months) {
   final first = DateTime(base.year, base.month + months);
   final lastDay = DateTime(first.year, first.month + 1, 0).day;
   final day = base.day > lastDay ? lastDay : base.day;
@@ -47,9 +48,9 @@ DateTime nextDue(DateTime base, String recurrence) {
     case 'weekly':
       return addDays(base, 7);
     case 'monthly':
-      return _addMonthsClamped(base, 1);
+      return addMonthsClamped(base, 1);
     case 'yearly':
-      return _addMonthsClamped(base, 12);
+      return addMonthsClamped(base, 12);
     default:
       return base;
   }
@@ -185,4 +186,52 @@ double? parseAmount(String input) {
   final v = double.tryParse(cleaned);
   if (v == null || v.isNaN || v.isInfinite || v <= 0) return null;
   return (v * 100).roundToDouble() / 100;
+}
+
+// ---------------------------------------------------------------------------
+// Recurring expenses and income
+// ---------------------------------------------------------------------------
+
+/// How often a recurring entry repeats.
+const List<String> kRecurringFrequencies = ['weekly', 'monthly'];
+
+String frequencyLabel(String f) => f == 'weekly' ? 'Weekly' : 'Monthly';
+
+/// The date of occurrence [index] (0 = the start date). Monthly entries keep their day of the
+/// month and clamp to the end of short months, so the 31st becomes Feb 28 and then Mar 31 again.
+DateTime recurringOccurrence(DateTime start, String frequency, int index) =>
+    frequency == 'weekly' ? addDays(start, 7 * index) : addMonthsClamped(start, index);
+
+/// Indexes from [nextIndex] whose day has come (on or before [now]'s day). Capped so a broken
+/// start date can never post thousands of entries.
+List<int> dueOccurrences(DateTime start, String frequency, int nextIndex, DateTime now, {int cap = 400}) {
+  final today = dateOnly(now);
+  final out = <int>[];
+  for (var i = nextIndex < 0 ? 0 : nextIndex; out.length < cap; i++) {
+    if (dateOnly(recurringOccurrence(start, frequency, i)).isAfter(today)) break;
+    out.add(i);
+  }
+  return out;
+}
+
+/// The first index from [from] whose day is today or later (used when resuming a paused entry,
+/// so the occurrences missed while paused are skipped instead of posted).
+int firstOccurrenceFrom(DateTime start, String frequency, int from, DateTime now) {
+  final today = dateOnly(now);
+  var i = from < 0 ? 0 : from;
+  while (dateOnly(recurringOccurrence(start, frequency, i)).isBefore(today) && i < from + 10000) {
+    i++;
+  }
+  return i;
+}
+
+/// "Monthly on the 5th" / "Weekly on Monday".
+String recurringScheduleLabel(DateTime start, String frequency) {
+  if (frequency == 'weekly') {
+    const names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return 'Weekly on ${names[start.weekday - 1]}';
+  }
+  final d = start.day;
+  final suffix = (d % 100 >= 11 && d % 100 <= 13) ? 'th' : switch (d % 10) { 1 => 'st', 2 => 'nd', 3 => 'rd', _ => 'th' };
+  return d >= 29 ? 'Monthly on the $d$suffix (or the last day)' : 'Monthly on the $d$suffix';
 }

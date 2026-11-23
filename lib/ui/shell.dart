@@ -1,20 +1,78 @@
+import 'dart:async';
+
 import 'package:basalt/basalt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers.dart';
 import '../services/app_lock.dart';
+import '../services/background_sync.dart';
+import '../services/quick_access.dart';
 import 'calendar.dart';
+import 'common.dart';
+import 'focus.dart';
 import 'home.dart';
 import 'more.dart';
 import 'notes.dart';
 import 'tasks.dart';
 
-class HomeShell extends ConsumerWidget {
+class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserver {
+  StreamSubscription<String>? _actions;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Launcher shortcuts and the Quick Settings tile.
+    _actions = QuickAccess.actions.listen((a) {
+      QuickAccess.consumed();
+      _open(a);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      unawaited(QuickAccess.installShortcuts());
+      unawaited(ref.read(backgroundSyncProvider).catchUp());
+      final a = await QuickAccess.takeAction();
+      if (a != null) _open(a);
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _actions?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Coming back (maybe on a new day): post recurring entries and refresh the widget.
+    if (state == AppLifecycleState.resumed) unawaited(ref.read(backgroundSyncProvider).catchUp());
+  }
+
+  void _open(String action) {
+    if (!mounted) return;
+    switch (action) {
+      case QuickAccess.newTask:
+        push(context, const TaskEditor());
+      case QuickAccess.newNote:
+        push(context, const NoteEditor());
+      case QuickAccess.focus:
+        final timer = ref.read(focusTimerProvider);
+        if (!timer.active) timer.start();
+        push(context, const FocusPage());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.watch(backgroundSyncProvider);
     return BTabShell(
       controller: ref.watch(tabControllerProvider),
       tabs: [

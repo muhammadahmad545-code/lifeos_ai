@@ -97,7 +97,7 @@ class MorePage extends ConsumerWidget {
             BListRow(
               icon: Icons.settings_outlined,
               title: 'Settings',
-              subtitle: 'Theme, reminders, app lock, backup and updates',
+              subtitle: 'Theme, reminders, app lock, quick access, backup and updates',
               chevron: true,
               onTap: () => push(context, const SettingsPage()),
             ),

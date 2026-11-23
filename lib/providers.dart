@@ -27,6 +27,7 @@ final habitsProvider = StreamProvider<List<HabitRow>>((ref) => ref.watch(repoPro
 final habitLogsProvider = StreamProvider<List<HabitLogRow>>((ref) => ref.watch(repoProvider).watchHabitLogs());
 final journalProvider = StreamProvider<List<JournalEntryRow>>((ref) => ref.watch(repoProvider).watchJournal());
 final expensesProvider = StreamProvider<List<ExpenseRow>>((ref) => ref.watch(repoProvider).watchExpenses());
+final recurringProvider = StreamProvider<List<RecurringRow>>((ref) => ref.watch(repoProvider).watchRecurring());
 final budgetsProvider = StreamProvider<List<BudgetRow>>((ref) => ref.watch(repoProvider).watchBudgets());
 final goalsProvider = StreamProvider<List<GoalRow>>((ref) => ref.watch(repoProvider).watchGoals());
 final focusSessionsProvider = StreamProvider<List<FocusSessionRow>>((ref) => ref.watch(repoProvider).watchFocus());

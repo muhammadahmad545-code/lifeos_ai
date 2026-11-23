@@ -38,6 +38,7 @@ const List<String> _userTables = [
     HabitLogs,
     JournalEntries,
     Expenses,
+    RecurringEntries,
     Budgets,
     Goals,
     FocusSessions,
@@ -47,7 +48,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? driftDatabase(name: 'lifeos_ai'));
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -73,6 +74,11 @@ class AppDatabase extends _$AppDatabase {
             await _seedHabitLogsFromStreaks();
             // 1.x stored local accounts with password hashes. 2.0 has no accounts.
             await customStatement('DROP TABLE IF EXISTS users');
+          }
+          if (from < 6) {
+            // 2.1: recurring expenses and income. Existing rows are untouched.
+            await m.addColumn(expenses, expenses.recurringId);
+            await m.createTable(recurringEntries);
           }
         },
       );

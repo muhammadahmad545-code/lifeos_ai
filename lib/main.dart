@@ -7,10 +7,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'providers.dart';
+import 'services/quick_access.dart';
 import 'services/reminders.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  QuickAccess.init();
   unawaited(BasaltUpdater.instance.start(owner: 'muhammadahmad545-code', repo: 'plania'));
   final prefs = await SharedPreferences.getInstance();
   final db = AppDatabase();

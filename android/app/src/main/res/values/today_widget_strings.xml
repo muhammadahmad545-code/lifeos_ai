@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="today_widget_label">Plania: Today</string>
+    <string name="today_widget_title">Today</string>
+    <string name="today_widget_description">Tasks due today, habits done and your next event</string>
+    <string name="today_widget_open">Open Plania to refresh</string>
+    <string name="today_widget_habits">habits</string>
+    <string name="today_widget_no_events">No upcoming events</string>
+    <string name="tile_new_task">New task</string>
+</resources>

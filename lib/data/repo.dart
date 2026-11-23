@@ -344,7 +344,142 @@ class LifeRepo {
     }
   }
 
+  Future<ExpenseRow?> expense(String id) => (db.select(db.expenses)..where((e) => e.id.equals(id))).getSingleOrNull();
+
   Future<void> deleteExpense(String id) => (db.delete(db.expenses)..where((e) => e.id.equals(id))).go();
+
+  // ---------------------------------------------------------------------------
+  // Recurring expenses and income
+  // ---------------------------------------------------------------------------
+
+  Stream<List<RecurringRow>> watchRecurring() => (db.select(db.recurringEntries)
+        ..where((r) => r.userId.equals(kLocalUserId))
+        ..orderBy([(r) => OrderingTerm.asc(r.isPaused), (r) => OrderingTerm.asc(r.createdAt)]))
+      .watch();
+
+  Future<List<RecurringRow>> allRecurring() =>
+      (db.select(db.recurringEntries)..where((r) => r.userId.equals(kLocalUserId))).get();
+
+  /// The id of the expense posted for occurrence [index] of a rule. Being deterministic, the
+  /// same occurrence can never be inserted twice.
+  static String occurrenceId(String ruleId, int index) => 'rec-$ruleId-$index';
+
+  /// Creates a recurring entry whose first occurrence is [start], then posts whatever is due.
+  Future<String> addRecurring({
+    required String description,
+    required double amount,
+    required String category,
+    required bool isIncome,
+    required String frequency,
+    required DateTime start,
+    DateTime? now,
+  }) async {
+    final id = newId();
+    await db.into(db.recurringEntries).insert(
+          RecurringEntriesCompanion.insert(
+            id: id,
+            userId: kLocalUserId,
+            description: description,
+            amount: amount,
+            category: category,
+            isIncome: Value(isIncome),
+            frequency: frequency,
+            startDate: start,
+            createdAt: DateTime.now(),
+          ),
+        );
+    await postDueRecurring(now);
+    return id;
+  }
+
+  /// Turns an existing entry into the first occurrence of a new recurring rule. Later
+  /// occurrences post from today on; the ones between the entry's date and today are not
+  /// back-filled (the user has usually recorded those already).
+  Future<String> makeRecurring(ExpenseRow entry, String frequency, {DateTime? now}) async {
+    final n = now ?? DateTime.now();
+    final id = newId();
+    await db.transaction(() async {
+      await db.into(db.recurringEntries).insert(
+            RecurringEntriesCompanion.insert(
+              id: id,
+              userId: kLocalUserId,
+              description: entry.description,
+              amount: entry.amount,
+              category: entry.category,
+              isIncome: Value(entry.isIncome),
+              frequency: frequency,
+              startDate: entry.date,
+              nextIndex: Value(firstOccurrenceFrom(entry.date, frequency, 1, n)),
+              createdAt: n,
+            ),
+          );
+      await (db.update(db.expenses)..where((e) => e.id.equals(entry.id))).write(ExpensesCompanion(recurringId: Value(id)));
+    });
+    await postDueRecurring(n);
+    return id;
+  }
+
+  /// Posts every occurrence whose day has come, for all active rules, in one transaction.
+  /// Safe to call any number of times (app start, resume, midnight): each occurrence has a
+  /// fixed id and the rule's next index only moves forward. Returns the entries added.
+  Future<int> postDueRecurring([DateTime? now]) {
+    final n = now ?? DateTime.now();
+    return db.transaction(() async {
+      var posted = 0;
+      final rules = await (db.select(db.recurringEntries)
+            ..where((r) => r.userId.equals(kLocalUserId) & r.isPaused.equals(false)))
+          .get();
+      for (final r in rules) {
+        final due = dueOccurrences(r.startDate, r.frequency, r.nextIndex, n);
+        if (due.isEmpty) continue;
+        for (final i in due) {
+          final rowId = occurrenceId(r.id, i);
+          final exists = await (db.select(db.expenses)..where((e) => e.id.equals(rowId))).getSingleOrNull();
+          if (exists != null) continue;
+          await db.into(db.expenses).insert(
+                ExpensesCompanion.insert(
+                  id: rowId,
+                  userId: kLocalUserId,
+                  description: r.description,
+                  amount: r.amount,
+                  category: r.category,
+                  date: recurringOccurrence(r.startDate, r.frequency, i),
+                  isIncome: Value(r.isIncome),
+                  recurringId: Value(r.id),
+                  createdAt: n,
+                ),
+                mode: InsertMode.insertOrIgnore,
+              );
+          posted++;
+        }
+        await (db.update(db.recurringEntries)..where((x) => x.id.equals(r.id)))
+            .write(RecurringEntriesCompanion(nextIndex: Value(due.last + 1)));
+      }
+      return posted;
+    });
+  }
+
+  /// Pauses or resumes a rule. Occurrences that fall while it is paused are skipped, not
+  /// posted later.
+  Future<void> setRecurringPaused(String id, bool paused, {DateTime? now}) async {
+    final n = now ?? DateTime.now();
+    final r = await (db.select(db.recurringEntries)..where((x) => x.id.equals(id))).getSingleOrNull();
+    if (r == null || r.isPaused == paused) return;
+    await (db.update(db.recurringEntries)..where((x) => x.id.equals(id))).write(
+          RecurringEntriesCompanion(
+            isPaused: Value(paused),
+            nextIndex: paused ? const Value.absent() : Value(firstOccurrenceFrom(r.startDate, r.frequency, r.nextIndex, n)),
+          ),
+        );
+    if (!paused) await postDueRecurring(n);
+  }
+
+  /// Deletes a rule. Entries it already posted stay, as ordinary entries.
+  Future<void> deleteRecurring(String id) => db.transaction(() async {
+        await (db.update(db.expenses)..where((e) => e.recurringId.equals(id)))
+            .write(const ExpensesCompanion(recurringId: Value(null)));
+        await (db.delete(db.recurringEntries)..where((r) => r.id.equals(id))).go();
+      });
 
   Stream<List<BudgetRow>> watchBudgets() => (db.select(db.budgets)
         ..where((b) => b.userId.equals(kLocalUserId))

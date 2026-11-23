@@ -64,6 +64,7 @@ class _ExpensesPageState extends ConsumerState<ExpensesPage> {
       byDay.putIfAbsent(dayKey(e.date), () => []).add(e);
     }
     final isCurrent = _month == monthStart(DateTime.now());
+    final recurring = ref.watch(recurringProvider).list;
 
     return SubPage(
       title: 'Expenses',
@@ -112,6 +113,10 @@ class _ExpensesPageState extends ConsumerState<ExpensesPage> {
               for (final c in cats) _CategoryRow(category: c, spent: byCat[c] ?? 0, limit: budgets[c], total: spent),
             ],
           ),
+        if (recurring.isNotEmpty) ...[
+          const BSectionTitle('Recurring'),
+          BGroup(children: [for (final r in recurring) _RecurringTile(rule: r)]),
+        ],
         const BSectionTitle('Transactions'),
         if (rows.isEmpty)
           BEmptyState(
@@ -192,7 +197,7 @@ class _ExpenseTile extends ConsumerWidget {
       icon: categoryIcon(expense.category),
       iconColor: expense.isIncome ? p.success : null,
       title: expense.description,
-      subtitle: expense.category,
+      subtitle: expense.recurringId == null ? expense.category : '${expense.category} · Recurring',
       trailing: Text(
         expense.isIncome ? '+${money(expense.amount)}' : money(expense.amount),
         style: BasaltType.bodyStrong.copyWith(color: expense.isIncome ? p.success : p.text),
@@ -200,6 +205,85 @@ class _ExpenseTile extends ConsumerWidget {
       onTap: () => push(context, ExpenseEditor(expense: expense)),
     );
   }
+}
+
+class _RecurringTile extends ConsumerWidget {
+  const _RecurringTile({required this.rule});
+
+  final RecurringRow rule;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = context.basalt;
+    final money = ref.watch(moneyProvider);
+    final next = recurringOccurrence(rule.startDate, rule.frequency, rule.nextIndex);
+    return BListRow(
+      icon: categoryIcon(rule.category),
+      iconColor: rule.isPaused ? p.textFaint : (rule.isIncome ? p.success : null),
+      title: rule.description,
+      subtitle: rule.isPaused
+          ? '${frequencyLabel(rule.frequency)} · Paused'
+          : '${recurringScheduleLabel(rule.startDate, rule.frequency)} · next ${relativeDay(next)}',
+      trailing: Text(
+        rule.isIncome ? '+${money(rule.amount)}' : money(rule.amount),
+        style: BasaltType.bodyStrong.copyWith(color: rule.isPaused ? p.textFaint : (rule.isIncome ? p.success : p.text)),
+      ),
+      onTap: () => _manageRecurring(context, ref, rule),
+    );
+  }
+}
+
+Future<void> _manageRecurring(BuildContext context, WidgetRef ref, RecurringRow rule) async {
+  final repo = ref.read(repoProvider);
+  await showFormSheet<void>(
+    context,
+    title: rule.description,
+    builder: (ctx) {
+      final p = ctx.basalt;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${recurringScheduleLabel(rule.startDate, rule.frequency)}, ${rule.isIncome ? 'income' : 'expense'} of '
+            '${ref.read(moneyProvider)(rule.amount)} in ${rule.category}. It is added on its day, or the next time '
+            'you open Plania if the phone was off.',
+            style: BasaltType.body.copyWith(color: p.textMuted),
+          ),
+          const SizedBox(height: Gap.lg),
+          BButton(
+            label: rule.isPaused ? 'Resume' : 'Pause',
+            icon: rule.isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+            variant: BButtonVariant.secondary,
+            expand: true,
+            onPressed: () async {
+              await repo.setRecurringPaused(rule.id, !rule.isPaused);
+              if (ctx.mounted) Navigator.of(ctx).pop();
+            },
+          ),
+          const SizedBox(height: Gap.sm),
+          BButton(
+            label: 'Delete recurring entry',
+            icon: Icons.delete_outline_rounded,
+            variant: BButtonVariant.danger,
+            expand: true,
+            onPressed: () async {
+              final ok = await bConfirm(
+                ctx,
+                title: 'Stop repeating "${rule.description}"?',
+                message: 'Entries already added stay in your history.',
+                confirmLabel: 'Delete',
+                danger: true,
+              );
+              if (!ok) return;
+              await repo.deleteRecurring(rule.id);
+              if (ctx.mounted) Navigator.of(ctx).pop();
+            },
+          ),
+        ],
+      );
+    },
+  );
 }
 
 Future<void> _editBudget(BuildContext context, WidgetRef ref, DateTime month, Map<String, double> current) async {
@@ -288,6 +372,9 @@ class _ExpenseEditorState extends ConsumerState<ExpenseEditor> {
   late bool _income = widget.expense?.isIncome ?? false;
   late String _category = widget.expense?.category ?? kExpenseCategories.first;
   late DateTime _date = widget.expense?.date ?? widget.initialDate ?? DateTime.now();
+  // 'none', 'weekly' or 'monthly'.
+  String _repeat = 'none';
+  bool _saving = false;
 
   @override
   void dispose() {
@@ -297,20 +384,40 @@ class _ExpenseEditorState extends ConsumerState<ExpenseEditor> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     final amount = parseAmount(_amount.text);
     if (amount == null) {
       BToast.show(context, 'Enter an amount above zero');
       return;
     }
-    final desc = _desc.text.trim();
-    await ref.read(repoProvider).saveExpense(
-          id: widget.expense?.id,
-          description: desc.isEmpty ? _category : desc,
-          amount: amount,
-          category: _category,
-          date: _date,
-          isIncome: _income,
-        );
+    setState(() => _saving = true);
+    final desc = _desc.text.trim().isEmpty ? _category : _desc.text.trim();
+    final repo = ref.read(repoProvider);
+    final existing = widget.expense;
+    if (existing == null && _repeat != 'none') {
+      // The rule posts the first entry itself when its day has come.
+      await repo.addRecurring(
+        description: desc,
+        amount: amount,
+        category: _category,
+        isIncome: _income,
+        frequency: _repeat,
+        start: _date,
+      );
+    } else {
+      await repo.saveExpense(
+        id: existing?.id,
+        description: desc,
+        amount: amount,
+        category: _category,
+        date: _date,
+        isIncome: _income,
+      );
+      if (existing != null && _repeat != 'none') {
+        final saved = await repo.expense(existing.id);
+        if (saved != null) await repo.makeRecurring(saved, _repeat);
+      }
+    }
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -328,7 +435,7 @@ class _ExpenseEditorState extends ConsumerState<ExpenseEditor> {
     final shownCats = cats.contains(_category) ? cats : [...cats, _category];
     return EditorScaffold(
       title: widget.expense == null ? (_income ? 'Add income' : 'Add expense') : 'Edit entry',
-      onSave: _save,
+      onSave: _saving ? null : _save,
       actions: [
         if (widget.expense != null) IconAction(icon: Icons.delete_outline_rounded, label: 'Delete entry', onPressed: _delete),
       ],
@@ -367,13 +474,6 @@ class _ExpenseEditorState extends ConsumerState<ExpenseEditor> {
             ),
           ],
         ),
-        const FieldLabel('Category'),
-        ChipWrap(
-          children: [
-            for (final c in shownCats)
-              BChip(label: c, icon: categoryIcon(c), selected: _category == c, onTap: () => setState(() => _category = c)),
-          ],
-        ),
         const FieldLabel('Date'),
         PickerField(
           icon: Icons.event_rounded,
@@ -382,6 +482,34 @@ class _ExpenseEditorState extends ConsumerState<ExpenseEditor> {
             final d = await pickDate(context, _date);
             if (d != null) setState(() => _date = DateTime(d.year, d.month, d.day, 12));
           },
+        ),
+        const FieldLabel('Repeat'),
+        if (widget.expense?.recurringId != null)
+          Text(
+            'Added by a recurring entry. Pause or delete it under Recurring on the Expenses screen.',
+            style: BasaltType.caption.copyWith(color: context.basalt.textMuted),
+          )
+        else ...[
+          ChipWrap(
+            children: [
+              for (final (value, label) in [('none', 'Never'), ('weekly', 'Weekly'), ('monthly', 'Monthly')])
+                BChip(label: label, selected: _repeat == value, onTap: () => setState(() => _repeat = value)),
+            ],
+          ),
+          if (_repeat != 'none') ...[
+            const SizedBox(height: Gap.sm),
+            Text(
+              '${recurringScheduleLabel(_date, _repeat)}. Each one is added on its day.',
+              style: BasaltType.caption.copyWith(color: context.basalt.textMuted),
+            ),
+          ],
+        ],
+        const FieldLabel('Category'),
+        ChipWrap(
+          children: [
+            for (final c in shownCats)
+              BChip(label: c, icon: categoryIcon(c), selected: _category == c, onTap: () => setState(() => _category = c)),
+          ],
         ),
       ],
     );

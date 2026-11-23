@@ -74,6 +74,19 @@ tap_text "Save"; sleep 2
 expect "12.50" 10 "monthly total shows the expense"
 expect "Lunch" 5 "expense is listed"
 shot e2e-expenses
+
+# --- Recurring: a monthly expense dated today is posted and counted this month ----------------
+tap_text "Add expense"; sleep 2
+tap_class EditText 0; type_text "1200"
+tap_class EditText 1; type_text "Rent"; hide_keyboard
+tap_text "Monthly"; sleep 1
+expect "Each one is added on its day" 5 "editor explains the monthly schedule"
+shot e2e-recurring-editor
+tap_text "Save"; sleep 3
+expect "1,212.50" 10 "this month's total includes the recurring expense"
+expect "Recurring" 5 "Recurring section lists the rule"
+expect "Monthly on the" 5 "recurring rule shows its schedule"
+shot e2e-recurring
 back
 
 # --- Assistant: answers come from the data above ---------------------------------------------
@@ -89,11 +102,35 @@ back
 tap_text "Home"; sleep 2
 tap_text "Settings"; sleep 2
 shot e2e-settings
-swipe_up; swipe_up
+expect "Quick Settings tile" 5 "settings explain quick access"
+expect "Launcher shortcuts" 5 "settings list the launcher shortcuts"
+shot e2e-settings-quick-access
 expect "Export backup" 5 "settings show backup options"
 expect "Plania keeps everything on this phone" 5 "settings use the new name"
 shot e2e-settings-data
+
+# --- Encrypted backup: the passphrase sheet, then the system save dialog ----------------------
+# At the very bottom of Settings the backup rows are always on screen.
+swipe_up; swipe_up; swipe_up; swipe_up
+tap_text "Export backup"; sleep 2
+expect "Protect this backup" 8 "export asks for a passphrase"
+expect "Skip, save without a passphrase" 3 "passphrase can be skipped"
+shot e2e-backup-passphrase
+# The passphrase field has focus. Enter moves to the repeat field, then submits.
+type_text "plania-pass-42"; adb shell input keyevent 66; sleep 1
+type_text "plania-pass-42"; adb shell input keyevent 66
+SAVE_UI=0
+for i in $(seq 1 20); do
+  if adb shell dumpsys window | grep -E "mCurrentFocus|mFocusedApp" | grep -q documentsui; then SAVE_UI=1; break; fi
+  sleep 2
+done
+shot e2e-backup-save-dialog
+if [ "$SAVE_UI" = 1 ]; then pass "encrypted backup reaches the system save dialog"; else fail "encrypted backup reaches the system save dialog"; fi
 back
+alive || fail "app survives cancelling the backup save"
+adb shell am force-stop "$PKG"; sleep 2
+launch
+wait_for "Today" 20
 
 # --- Calendar: add an event for today ----------------------------------------------------------
 tap_text "Calendar"; sleep 2
@@ -119,5 +156,39 @@ expect "Packing list" 10 "note persisted"
 tap_text "More"; sleep 2
 tap_text "Expenses"; sleep 2
 expect "12.50" 10 "expense persisted"
+expect "Rent" 5 "recurring expense persisted"
 back
+
+# --- Quick access: widget, launcher shortcuts and the New task tile ---------------------------
+adb shell dumpsys appwidget > "$OUT/appwidget.txt" 2>/dev/null
+grep -q "$PKG/$PKG.TodayWidget" "$OUT/appwidget.txt" && pass "Today widget is registered" || fail "Today widget is registered"
+adb shell dumpsys shortcut > "$OUT/shortcuts.txt" 2>/dev/null
+for id in new-task new-note focus; do
+  grep -A150 "Package: $PKG" "$OUT/shortcuts.txt" | grep -q "id=$id" && pass "launcher shortcut $id" || fail "launcher shortcut $id"
+done
+
+adb shell am force-stop "$PKG"; sleep 2
+launch
+wait_for "Today" 20
+TILE="$PKG/$PKG.NewTaskTileService"
+adb shell cmd statusbar add-tile "$TILE" >/dev/null 2>&1; sleep 1
+adb logcat -c
+adb shell cmd statusbar click-tile "$TILE" >/dev/null 2>&1; sleep 4
+adb shell cmd statusbar collapse >/dev/null 2>&1; sleep 2
+shot e2e-tile
+# The title field has focus and the keyboard is up, so check without scrolling.
+if wait_contains "PRIORITY" 5 && has_text "New task"; then pass "New task tile opens the task editor"; else fail "New task tile opens the task editor"; fi
+adb logcat -d | grep -q "FATAL EXCEPTION" && fail "tile opens the app without crashing" || pass "tile opens the app without crashing"
+
+# Cold start from the New note shortcut's intent.
+adb shell am force-stop "$PKG"; sleep 2
+adb shell am start -n "$PKG/.MainActivity" --es plania.action new-note >/dev/null 2>&1; sleep 6
+shot e2e-shortcut-note
+if wait_contains "Add checklist item" 5; then pass "New note shortcut opens the note editor"; else fail "New note shortcut opens the note editor"; fi
+
+# Start focus shortcut while the app is open.
+adb shell am start -n "$PKG/.MainActivity" --es plania.action focus >/dev/null 2>&1; sleep 4
+shot e2e-shortcut-focus
+if wait_contains "Pause" 5; then pass "Start focus shortcut starts a session"; else fail "Start focus shortcut starts a session"; fi
+tap_text "Stop"; sleep 1
 alive || fail "app is not running at the end of the end-to-end checks"
