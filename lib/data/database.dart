@@ -77,8 +77,13 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 6) {
             // 2.1: recurring expenses and income. Existing rows are untouched.
-            await m.addColumn(expenses, expenses.recurringId);
-            await m.createTable(recurringEntries);
+            final existing = await _existingTables();
+            if (existing.contains('expenses')) {
+              await m.addColumn(expenses, expenses.recurringId);
+            } else {
+              await m.createTable(expenses);
+            }
+            if (!existing.contains('recurring_entries')) await m.createTable(recurringEntries);
           }
         },
       );
