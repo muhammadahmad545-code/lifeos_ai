@@ -1,4 +1,4 @@
-# End-to-end checks for LifeOS. Sourced by scripts/smoke.sh after the tab tour, with the app
+# End-to-end checks for Plania. Sourced by scripts/smoke.sh after the tab tour, with the app
 # open on Home. Uses the helpers defined there (tap_text, type_text, expect, shot, ...).
 
 # Scroll the current screen up by about half its height (works at any emulator resolution).
@@ -91,6 +91,7 @@ tap_text "Settings"; sleep 2
 shot e2e-settings
 swipe_up; swipe_up
 expect "Export backup" 5 "settings show backup options"
+expect "Plania keeps everything on this phone" 5 "settings use the new name"
 shot e2e-settings-data
 back
 

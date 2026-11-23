@@ -19,7 +19,7 @@ abstract final class AppLock {
   static Future<bool> authenticate() async {
     try {
       return await _auth.authenticate(
-        localizedReason: 'Unlock LifeOS',
+        localizedReason: 'Unlock Plania',
         options: const AuthenticationOptions(stickyAuth: true, biometricOnly: false),
       );
     } on PlatformException catch (e) {

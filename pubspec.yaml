@@ -1,7 +1,7 @@
 name: lifeos
-description: LifeOS, an offline personal organizer for tasks, notes, calendar, habits, journal, expenses, goals and focus.
+description: Plania, an offline personal organizer for tasks, notes, calendar, habits, journal, expenses, goals and focus.
 publish_to: 'none'
-version: 2.0.0+20
+version: 2.0.1+21
 
 environment:
   sdk: '>=3.8.0 <4.0.0'

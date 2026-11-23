@@ -271,7 +271,7 @@ class _TaskEditorState extends ConsumerState<TaskEditor> {
       if (!reminderAt.isAfter(DateTime.now())) {
         warning = 'That reminder time has already passed';
       } else if (!await Reminders.instance.ensurePermission()) {
-        warning = 'Notifications are off for LifeOS, so the reminder cannot appear';
+        warning = 'Notifications are off for Plania, so the reminder cannot appear';
       }
     }
     final repo = ref.read(repoProvider);

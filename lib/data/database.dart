@@ -8,7 +8,7 @@ export 'tables.dart';
 
 part 'database.g.dart';
 
-/// LifeOS is single-user. Every row belongs to this id.
+/// Plania is single-user. Every row belongs to this id.
 const String kLocalUserId = 'local';
 
 /// Tables that carry a user_id column (including tables of 1.x modules that were removed,

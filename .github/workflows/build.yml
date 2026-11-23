@@ -1,4 +1,4 @@
-# Basalt Flutter app pipeline for LifeOS.
+# Basalt Flutter app pipeline for Plania.
 name: Build
 
 on:
@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  APP: lifeos
+  APP: plania
   FLUTTER_VERSION: 3.47.9
 
 jobs:

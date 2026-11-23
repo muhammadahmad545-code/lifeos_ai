@@ -343,7 +343,7 @@ class Assistant {
     return out.toString();
   }
 
-  String _help() => 'I answer questions about your own LifeOS data, on this device. Try:\n'
+  String _help() => 'I answer questions about your own Plania data, on this device. Try:\n'
       '• Plan my day\n'
       "• What's overdue?\n"
       '• My week ahead\n'

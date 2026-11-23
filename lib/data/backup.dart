@@ -4,7 +4,7 @@ import 'package:drift/drift.dart';
 
 import 'database.dart';
 
-/// Thrown when a file is not a LifeOS backup.
+/// Thrown when a file is not a Plania backup.
 class BackupFormatException implements Exception {
   const BackupFormatException(this.message);
   final String message;
@@ -70,11 +70,11 @@ class Backup {
       throw const BackupFormatException('This file is not valid JSON.');
     }
     if (data is! Map || data['app'] != 'lifeos') {
-      throw const BackupFormatException('This file is not a LifeOS backup.');
+      throw const BackupFormatException('This file is not a Plania backup.');
     }
     final format = data['format'];
     if (format is! int || format > formatVersion) {
-      throw const BackupFormatException('This backup was made by a newer version of LifeOS.');
+      throw const BackupFormatException('This backup was made by a newer version of Plania.');
     }
     return Map<String, dynamic>.from(data);
   }

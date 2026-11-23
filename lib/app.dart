@@ -7,14 +7,14 @@ import 'ui/shell.dart';
 
 const BasaltAccent kAccent = BasaltAccent.violet;
 
-class LifeOSApp extends ConsumerWidget {
-  const LifeOSApp({super.key});
+class PlaniaApp extends ConsumerWidget {
+  const PlaniaApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(settingsProvider.select((s) => s.themeMode));
     return MaterialApp(
-      title: 'LifeOS',
+      title: 'Plania',
       debugShowCheckedModeBanner: false,
       theme: basaltTheme(Brightness.light, kAccent),
       darkTheme: basaltTheme(Brightness.dark, kAccent),
@@ -35,7 +35,7 @@ class RootGate extends ConsumerWidget {
     final onboarded = ref.watch(settingsProvider.select((s) => s.onboarded));
     if (!onboarded) {
       return BOnboarding(
-        appName: 'LifeOS',
+        appName: 'Plania',
         pages: const [
           BOnboardingPage(
             icon: Icons.wb_sunny_outlined,

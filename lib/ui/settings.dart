@@ -50,8 +50,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     try {
       final json = await Backup(ref.read(dbProvider)).export();
       final path = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save LifeOS backup',
-        fileName: 'lifeos-backup-${dayKey(DateTime.now())}.json',
+        dialogTitle: 'Save Plania backup',
+        fileName: 'plania-backup-${dayKey(DateTime.now())}.json',
         bytes: Uint8List.fromList(utf8.encode(json)),
       );
       if (mounted && path != null) BToast.show(context, 'Backup saved');
@@ -81,7 +81,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       BToast.show(context, e.message);
       return;
     } on FormatException {
-      BToast.show(context, 'This file is not a LifeOS backup.');
+      BToast.show(context, 'This file is not a Plania backup.');
       return;
     }
     final total = counts.values.fold<int>(0, (s, v) => s + v);
@@ -175,7 +175,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 if (await Reminders.instance.ensurePermission()) {
                   await Reminders.instance.showTest();
                 } else if (context.mounted) {
-                  BToast.show(context, 'Notifications are off for LifeOS in system settings');
+                  BToast.show(context, 'Notifications are off for Plania in system settings');
                 }
                 ref.invalidate(_notificationStatusProvider);
               },
@@ -188,7 +188,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             SwitchRow(
               icon: Icons.lock_outline_rounded,
               title: 'App lock',
-              subtitle: 'Ask for your fingerprint, face or phone PIN when LifeOS opens',
+              subtitle: 'Ask for your fingerprint, face or phone PIN when Plania opens',
               value: s.appLock,
               onChanged: _toggleLock,
             ),
@@ -207,7 +207,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             BListRow(
               icon: Icons.download_rounded,
               title: 'Import backup',
-              subtitle: 'Merge a LifeOS backup into this phone',
+              subtitle: 'Merge a Plania backup into this phone',
               onTap: _busy ? null : _import,
             ),
           ],
@@ -216,7 +216,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         const UpdatesSection(),
         const SizedBox(height: Gap.lg),
         Text(
-          'LifeOS keeps everything on this phone. No account, no cloud, no tracking. '
+          'Plania keeps everything on this phone. No account, no cloud, no tracking. '
           'The only network use is checking GitHub for app updates.',
           textAlign: TextAlign.center,
           style: BasaltType.caption.copyWith(color: p.textFaint),

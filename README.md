@@ -1,4 +1,6 @@
-# LifeOS
+# Plania
+
+*Renamed from **LifeOS** in 2.0.1.*
 
 An offline personal organizer for Android, part of the Basalt app suite. Tasks, notes, calendar,
 habits, journal, expenses, goals and a focus timer in one calm app. No account, no cloud: everything

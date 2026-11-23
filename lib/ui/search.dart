@@ -110,7 +110,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           if (q.isEmpty)
             const BEmptyState(
               icon: Icons.search_rounded,
-              title: 'Search LifeOS',
+              title: 'Search Plania',
               message: 'Find tasks, notes, events, journal entries, expenses, goals and habits.',
             )
           else if (sections.isEmpty)

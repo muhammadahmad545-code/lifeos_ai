@@ -19,7 +19,7 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const LifeOSApp()));
+    await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const PlaniaApp()));
     await tester.pump();
     expect(find.text('Your day on one screen'), findsOneWidget);
     expect(find.text('Skip'), findsOneWidget);

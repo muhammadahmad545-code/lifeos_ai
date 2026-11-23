@@ -22,7 +22,7 @@ Future<void> main() async {
         prefsProvider.overrideWithValue(prefs),
         dbProvider.overrideWithValue(db),
       ],
-      child: const LifeOSApp(),
+      child: const PlaniaApp(),
     ),
   );
 

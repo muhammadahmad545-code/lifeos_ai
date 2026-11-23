@@ -108,7 +108,7 @@ class _AppLockGateState extends ConsumerState<AppLockGate> with WidgetsBindingOb
                     children: [
                       BIconTile(Icons.lock_outline_rounded, size: 64),
                       const SizedBox(height: Gap.xl),
-                      Text('LifeOS is locked', style: BasaltType.title.copyWith(color: p.text)),
+                      Text('Plania is locked', style: BasaltType.title.copyWith(color: p.text)),
                       const SizedBox(height: Gap.sm),
                       Text('Use your fingerprint, face or phone PIN to continue.', textAlign: TextAlign.center, style: BasaltType.body.copyWith(color: p.textMuted)),
                       const SizedBox(height: Gap.xl),
