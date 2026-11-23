@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lifeos/data/database.dart';
-import 'package:lifeos/logic/assistant.dart';
-import 'package:lifeos/logic/dates.dart';
-import 'package:lifeos/logic/rules.dart';
+import 'package:plania/data/database.dart';
+import 'package:plania/logic/assistant.dart';
+import 'package:plania/logic/dates.dart';
+import 'package:plania/logic/rules.dart';
 
 TaskRow task(String title, {DateTime? due, int priority = 1, bool done = false, String? parent}) {
   final now = DateTime(2026, 11, 17, 8);

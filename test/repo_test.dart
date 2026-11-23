@@ -1,10 +1,10 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lifeos/data/backup.dart';
-import 'package:lifeos/data/database.dart';
-import 'package:lifeos/data/repo.dart';
-import 'package:lifeos/logic/dates.dart';
+import 'package:plania/data/backup.dart';
+import 'package:plania/data/database.dart';
+import 'package:plania/data/repo.dart';
+import 'package:plania/logic/dates.dart';
 
 class RecordingReminders implements ReminderScheduler {
   final synced = <String>[];

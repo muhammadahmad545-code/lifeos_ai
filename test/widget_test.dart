@@ -2,8 +2,8 @@ import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lifeos/app.dart';
-import 'package:lifeos/providers.dart';
+import 'package:plania/app.dart';
+import 'package:plania/providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

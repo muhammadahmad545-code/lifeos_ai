@@ -11,7 +11,7 @@ import 'services/reminders.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  unawaited(BasaltUpdater.instance.start(owner: 'muhammadahmad545-code', repo: 'lifeos_ai'));
+  unawaited(BasaltUpdater.instance.start(owner: 'muhammadahmad545-code', repo: 'plania'));
   final prefs = await SharedPreferences.getInstance();
   final db = AppDatabase();
   await Reminders.instance.init();
