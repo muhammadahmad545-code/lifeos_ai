@@ -366,7 +366,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             BListRow(
               icon: Icons.widgets_outlined,
               title: 'Home-screen widget',
-              subtitle: 'Today: tasks due, habits done and your next event. Tap to add it, or long-press the home screen and pick Widgets > Plania.',
+              subtitle: 'Tasks due, habits and your next event. Tap to add it.',
               onTap: () async {
                 final shown = await QuickAccess.pinWidget();
                 if (shown || !context.mounted) return;
@@ -376,7 +376,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             BListRow(
               icon: Icons.add_task_rounded,
               title: 'Quick Settings tile',
-              subtitle: 'New task opens the task editor from anywhere. Tap to add it, or edit the Quick Settings panel.',
+              subtitle: 'New task, from anywhere. Tap to add it.',
               onTap: () async {
                 final shown = await QuickAccess.addTile();
                 if (shown || !context.mounted) return;
@@ -386,7 +386,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             const BListRow(
               icon: Icons.touch_app_outlined,
               title: 'Launcher shortcuts',
-              subtitle: 'Long-press the Plania icon for New task, New note and Start focus.',
+              subtitle: 'Long-press the app icon: New task, New note, Start focus.',
             ),
           ],
         ),
