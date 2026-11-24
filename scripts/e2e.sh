@@ -84,7 +84,7 @@ expect "Each one is added on its day" 5 "editor explains the monthly schedule"
 shot e2e-recurring-editor
 tap_text "Save"; sleep 3
 expect "1,212.50" 10 "this month's total includes the recurring expense"
-expect "Recurring" 5 "Recurring section lists the rule"
+expect "RECURRING" 5 "Recurring section lists the rule"
 expect "Monthly on the" 5 "recurring rule shows its schedule"
 shot e2e-recurring
 back
@@ -102,11 +102,13 @@ back
 tap_text "Home"; sleep 2
 tap_text "Settings"; sleep 2
 shot e2e-settings
-expect "Quick Settings tile" 5 "settings explain quick access"
-expect "Launcher shortcuts" 5 "settings list the launcher shortcuts"
+# smoke.sh's scroll_to swipes at fixed coordinates; this screen size needs swipe_up.
+swipe_to() { for i in 1 2 3 4 5 6; do has_text "$1" && return 0; swipe_up; done; has_text "$1"; }
+swipe_to "Launcher shortcuts" && pass "settings list the launcher shortcuts" || fail "settings list the launcher shortcuts"
+has_text "Quick Settings tile" && pass "settings explain quick access" || fail "settings explain quick access"
 shot e2e-settings-quick-access
-expect "Export backup" 5 "settings show backup options"
-expect "Plania keeps everything on this phone" 5 "settings use the new name"
+swipe_to "Plania keeps everything on this phone" && pass "settings use the new name" || fail "settings use the new name"
+has_text "Export backup" && pass "settings show backup options" || fail "settings show backup options"
 shot e2e-settings-data
 
 # --- Encrypted backup: the passphrase sheet, then the system save dialog ----------------------
@@ -126,8 +128,10 @@ for i in $(seq 1 20); do
 done
 shot e2e-backup-save-dialog
 if [ "$SAVE_UI" = 1 ]; then pass "encrypted backup reaches the system save dialog"; else fail "encrypted backup reaches the system save dialog"; fi
-back
+back; back
 alive || fail "app survives cancelling the backup save"
+adb shell am force-stop com.google.android.documentsui >/dev/null 2>&1
+adb shell am force-stop com.android.documentsui >/dev/null 2>&1
 adb shell am force-stop "$PKG"; sleep 2
 launch
 wait_for "Today" 20
