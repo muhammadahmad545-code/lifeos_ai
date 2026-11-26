@@ -8,6 +8,8 @@ swipe_up() {
   w=${size%x*}; h=${size#*x}
   adb shell input swipe $((w / 2)) $((h * 3 / 4)) $((w / 2)) $((h / 4)) 400; sleep 1
 }
+# smoke.sh's scroll_to swipes at fixed coordinates; this screen size needs swipe_up.
+swipe_to() { for i in 1 2 3 4 5 6; do has_text "$1" && return 0; swipe_up; done; has_text "$1"; }
 
 # --- Tasks: create, complete, then find it with search ---------------------------------------
 tap_text "Tasks"; sleep 2
@@ -70,18 +72,21 @@ expect "Work 1" 10 "a Work task makes the Work count 1"
 shot e2e-categories
 swipe_right_on "Draft report"; sleep 1
 dump
-if [ -n "$(_find contains "Undo")" ] && [ -z "$(_find contains "Complete Draft report")" ]; then
+UNDO_XY=$(_find exact "Undo")
+# Tap Undo from this same screen dump: the snackbar only stays for a few seconds.
+[ -n "$UNDO_XY" ] && adb shell input tap $UNDO_XY
+if [ -n "$UNDO_XY" ] && [ -z "$(_find contains "Complete Draft report")" ]; then
   pass "swipe right completes the task and offers Undo"
 else
   fail "swipe right completes the task and offers Undo"
 fi
+sleep 2
 shot e2e-swipe-undo
-tap_text "Undo"; sleep 2
-expect "Complete Draft report" 8 "Undo reopens the swiped task"
 tap_text "Insights"; sleep 2
 expect "1 completed today · 1-day streak" 8 "insights show 1 completed today and a 1-day streak"
 shot e2e-insights
 back
+swipe_to "Complete Draft report" && pass "Undo reopens the swiped task" || fail "Undo reopens the swiped task"
 
 tap_text "Notes"; sleep 2
 tap_text "New note"; sleep 2
@@ -96,10 +101,10 @@ shot e2e-note-to-tasks
 tap_text "Create"; sleep 2
 tap_text "Done"; sleep 2
 tap_text "Tasks"; sleep 2
-expect "Buy stamps" 8 "note line 1 is a task"
-expect "Post letter" 5 "note line 2 is a task"
-expect "Call bank" 5 "note line 3 is a task"
-expect "General 4" 5 "the new tasks are counted under General (with Renew passport)"
+expect "General 4" 8 "the new tasks are counted under General (with Renew passport)"
+for t in "Buy stamps" "Post letter" "Call bank"; do
+  swipe_to "$t" && pass "note line '$t' is a task" || fail "note line '$t' is a task"
+done
 shot e2e-tasks-from-note
 
 # --- Habits: add one and check it off for today ----------------------------------------------
@@ -161,8 +166,6 @@ if grep -q "Mark done" "$OUT/notifications.txt" && grep -q "Snooze 10 min" "$OUT
 else
   fail "reminder notification has Mark done and Snooze actions"
 fi
-# smoke.sh's scroll_to swipes at fixed coordinates; this screen size needs swipe_up.
-swipe_to() { for i in 1 2 3 4 5 6; do has_text "$1" && return 0; swipe_up; done; has_text "$1"; }
 swipe_to "Launcher shortcuts" && pass "settings list the launcher shortcuts" || fail "settings list the launcher shortcuts"
 has_text "Quick Settings tile" && pass "settings explain quick access" || fail "settings explain quick access"
 shot e2e-settings-quick-access
@@ -240,7 +243,7 @@ adb shell cmd statusbar click-tile "$TILE" >/dev/null 2>&1; sleep 4
 adb shell cmd statusbar collapse >/dev/null 2>&1; sleep 2
 shot e2e-tile
 # The title field has focus and the keyboard is up, so check without scrolling.
-if wait_contains "PRIORITY" 5 && has_text "New task"; then pass "New task tile opens the task editor"; else fail "New task tile opens the task editor"; fi
+if wait_contains "CATEGORY" 5 && has_text "New task"; then pass "New task tile opens the task editor"; else fail "New task tile opens the task editor"; fi
 adb logcat -d | grep -q "FATAL EXCEPTION" && fail "tile opens the app without crashing" || pass "tile opens the app without crashing"
 
 # Cold start from the New note shortcut's intent.
