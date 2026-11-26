@@ -30,8 +30,9 @@ back
 tap_text "Open"; sleep 1
 tap_text "New task"; sleep 2
 tap_class EditText 0; type_text "Renew passport"; hide_keyboard
+has_text "Next week" || swipe_up
 tap_text "Next week"; sleep 1
-has_text "1 day before" || swipe_up
+for i in 1 2 3; do has_text "1 day before" && break; swipe_up; done
 tap_text "1 day before"; sleep 1
 tap_text "Save"; sleep 3
 expect "Renew passport" 10 "task with a reminder is saved"
@@ -50,6 +51,56 @@ tap_class EditText 0; type_text "charger"; hide_keyboard
 expect "Packing list" 10 "notes search finds the note"
 expect_not "No matching notes" 1 "notes search has a result"
 shot e2e-notes
+
+# --- Categories, swipe with Undo, note lines into tasks, insights (2.2) -----------------------
+# Swipe a task row (found by its text) from left to right.
+swipe_right_on() {
+  local xy size w; dump; xy=$(_find contains "$1"); [ -n "$xy" ] || return 1
+  size=$(adb shell wm size | tr -d '\r' | awk '{print $NF}' | tail -1); w=${size%x*}
+  set -- $xy
+  adb shell input swipe $((w / 10)) "$2" $((w * 9 / 10)) "$2" 300
+}
+tap_text "Tasks"; sleep 2
+tap_text "New task"; sleep 2
+tap_class EditText 0; type_text "Draft report"; hide_keyboard
+tap_text "Work"; sleep 1
+shot e2e-task-category
+tap_text "Save"; sleep 2
+expect "Work 1" 10 "a Work task makes the Work count 1"
+shot e2e-categories
+swipe_right_on "Draft report"; sleep 1
+dump
+if [ -n "$(_find contains "Undo")" ] && [ -z "$(_find contains "Complete Draft report")" ]; then
+  pass "swipe right completes the task and offers Undo"
+else
+  fail "swipe right completes the task and offers Undo"
+fi
+shot e2e-swipe-undo
+tap_text "Undo"; sleep 2
+expect "Complete Draft report" 8 "Undo reopens the swiped task"
+tap_text "Insights"; sleep 2
+expect "1 completed today · 1-day streak" 8 "insights show 1 completed today and a 1-day streak"
+shot e2e-insights
+back
+
+tap_text "Notes"; sleep 2
+tap_text "New note"; sleep 2
+type_text "Errands"
+tap_class EditText 1
+type_text "Buy stamps"; adb shell input keyevent 66
+type_text "Post letter"; adb shell input keyevent 66
+type_text "Call bank"
+tap_text "Turn into tasks"; sleep 2
+expect "Create 3 tasks?" 5 "a 3-line note offers 3 tasks"
+shot e2e-note-to-tasks
+tap_text "Create"; sleep 2
+tap_text "Done"; sleep 2
+tap_text "Tasks"; sleep 2
+expect "Buy stamps" 8 "note line 1 is a task"
+expect "Post letter" 5 "note line 2 is a task"
+expect "Call bank" 5 "note line 3 is a task"
+expect "General 4" 5 "the new tasks are counted under General (with Renew passport)"
+shot e2e-tasks-from-note
 
 # --- Habits: add one and check it off for today ----------------------------------------------
 tap_text "More"; sleep 2
@@ -102,6 +153,14 @@ back
 tap_text "Home"; sleep 2
 tap_text "Settings"; sleep 2
 shot e2e-settings
+# Reminders come with Mark done and Snooze buttons (the test notification uses the same layout).
+tap_text "Send a test notification"; sleep 3
+adb shell dumpsys notification --noredact > "$OUT/notifications.txt" 2>/dev/null
+if grep -q "Mark done" "$OUT/notifications.txt" && grep -q "Snooze 10 min" "$OUT/notifications.txt"; then
+  pass "reminder notification has Mark done and Snooze actions"
+else
+  fail "reminder notification has Mark done and Snooze actions"
+fi
 # smoke.sh's scroll_to swipes at fixed coordinates; this screen size needs swipe_up.
 swipe_to() { for i in 1 2 3 4 5 6; do has_text "$1" && return 0; swipe_up; done; has_text "$1"; }
 swipe_to "Launcher shortcuts" && pass "settings list the launcher shortcuts" || fail "settings list the launcher shortcuts"

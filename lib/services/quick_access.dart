@@ -42,6 +42,12 @@ abstract final class QuickAccess {
     }
   }
 
+  /// Delivers an in-app action (a tapped reminder: `task:<id>`) the same way as a shortcut.
+  static void dispatch(String action) {
+    _pending = action;
+    _actions.add(action);
+  }
+
   /// Marks an action from [actions] as handled.
   static void consumed() => _pending = null;
 

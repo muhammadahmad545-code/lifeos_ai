@@ -6,6 +6,9 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../data/database.dart';
 import '../data/repo.dart';
+import '../logic/reminder_actions.dart';
+import 'quick_access.dart';
+import 'reminder_actions_handler.dart';
 
 /// Local notifications for task reminders and the focus timer.
 ///
@@ -30,6 +33,11 @@ class Reminders implements ReminderScheduler {
       importance: Importance.high,
       priority: Priority.high,
       icon: 'ic_stat_lifeos',
+      // Handled in the background (see reminder_actions_handler.dart) without opening the app.
+      actions: [
+        AndroidNotificationAction(kActionMarkDone, 'Mark done'),
+        AndroidNotificationAction(kActionSnooze, 'Snooze 10 min'),
+      ],
     ),
   );
 
@@ -47,16 +55,43 @@ class Reminders implements ReminderScheduler {
   AndroidFlutterLocalNotificationsPlugin? get _android =>
       _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
 
-  Future<void> init() async {
+  /// [foreground] is true in the app's main isolate, which also handles taps on a reminder
+  /// (open the task) and registers the background handler for its action buttons.
+  Future<void> init({bool foreground = false}) async {
     if (_ready) return;
     try {
       tz_data.initializeTimeZones();
       await _plugin.initialize(
         settings: const InitializationSettings(android: AndroidInitializationSettings('ic_stat_lifeos')),
+        onDidReceiveNotificationResponse: foreground ? _onTap : null,
+        onDidReceiveBackgroundNotificationResponse: foreground ? onReminderAction : null,
       );
       _ready = true;
     } catch (e) {
       debugPrint('notifications init failed: $e');
+    }
+  }
+
+  static void _onTap(NotificationResponse r) {
+    final id = taskIdFromPayload(r.payload);
+    if (id != null && r.actionId == null) QuickAccess.dispatch('task:$id');
+  }
+
+  bool _launchHandled = false;
+
+  /// The task whose reminder was tapped to start the app, once.
+  Future<String?> launchTaskId() async {
+    if (_launchHandled) return null;
+    _launchHandled = true;
+    await init();
+    try {
+      final details = await _plugin.getNotificationAppLaunchDetails();
+      if (details == null || !details.didNotificationLaunchApp) return null;
+      final r = details.notificationResponse;
+      if (r == null || r.actionId != null) return null;
+      return taskIdFromPayload(r.payload);
+    } catch (_) {
+      return null;
     }
   }
 
@@ -102,7 +137,7 @@ class Reminders implements ReminderScheduler {
     return h < 100 ? h + 100 : h;
   }
 
-  Future<void> _schedule(int id, String title, String body, DateTime when, NotificationDetails details) async {
+  Future<void> _schedule(int id, String title, String body, DateTime when, NotificationDetails details, {String? payload}) async {
     await init();
     if (!_ready || !when.isAfter(DateTime.now())) return;
     final at = tz.TZDateTime.from(when, tz.UTC);
@@ -114,6 +149,7 @@ class Reminders implements ReminderScheduler {
         body: body,
         scheduledDate: at,
         notificationDetails: details,
+        payload: payload,
         androidScheduleMode: exact ? AndroidScheduleMode.exactAllowWhileIdle : AndroidScheduleMode.inexactAllowWhileIdle,
       );
     } on PlatformException catch (e) {
@@ -125,6 +161,7 @@ class Reminders implements ReminderScheduler {
         body: body,
         scheduledDate: at,
         notificationDetails: details,
+        payload: payload,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
     }
@@ -147,7 +184,7 @@ class Reminders implements ReminderScheduler {
     final at = task.reminderAt;
     if (task.isCompleted || at == null || !at.isAfter(DateTime.now())) return;
     try {
-      await _schedule(id, task.title, _taskBody(task), at, _taskDetails);
+      await _schedule(id, task.title, _taskBody(task), at, _taskDetails, payload: reminderPayload(task.id));
     } catch (e) {
       debugPrint('schedule reminder failed: $e');
     }
@@ -184,7 +221,7 @@ class Reminders implements ReminderScheduler {
     await _plugin.show(
       id: 2,
       title: 'Reminders are on',
-      body: 'Task reminders will appear like this.',
+      body: 'Task reminders will appear like this, with Mark done and Snooze.',
       notificationDetails: _taskDetails,
     );
   }

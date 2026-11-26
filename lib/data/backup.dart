@@ -19,7 +19,8 @@ class Backup {
 
   final AppDatabase db;
 
-  /// 1: Plania 2.0. 2: adds recurring expenses and income (2.1). Older formats still import.
+  /// 1: Plania 2.0. 2: adds recurring expenses and income (2.1) and, from 2.2, task completions
+  /// (an extra section older versions ignore). Older formats still import.
   static const int formatVersion = 2;
 
   Future<String> export() async {
@@ -28,6 +29,7 @@ class Backup {
       'format': formatVersion,
       'exportedAt': DateTime.now().toIso8601String(),
       'tasks': [for (final r in await db.select(db.tasks).get()) r.toJson()],
+      'completions': [for (final r in await db.select(db.taskCompletions).get()) r.toJson()],
       'notes': [for (final r in await db.select(db.notes).get()) r.toJson()],
       'events': [for (final r in await db.select(db.calendarEvents).get()) r.toJson()],
       'habits': [for (final r in await db.select(db.habits).get()) r.toJson()],
@@ -53,6 +55,7 @@ class Backup {
 
   static const _sections = [
     'tasks',
+    'completions',
     'notes',
     'events',
     'habits',
@@ -111,6 +114,7 @@ class Backup {
 
     await db.transaction(() async {
       await rows(db.tasks, 'tasks', TaskRow.fromJson);
+      await rows(db.taskCompletions, 'completions', TaskCompletionRow.fromJson);
       await rows(db.notes, 'notes', NoteRow.fromJson);
       await rows(db.calendarEvents, 'events', CalendarEventRow.fromJson);
       await rows(db.habits, 'habits', HabitRow.fromJson);
@@ -121,6 +125,8 @@ class Backup {
       await rows(db.recurringEntries, 'recurring', RecurringRow.fromJson);
       await rows(db.goals, 'goals', GoalRow.fromJson);
       await rows(db.focusSessions, 'focus', FocusSessionRow.fromJson);
+      // Backups from before 2.2 have no completion history: rebuild it from completed tasks.
+      if (data['completions'] is! List) await db.backfillTaskCompletions();
     });
     return count;
   }

@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../logic/dates.dart';
+import '../logic/reminder_actions.dart';
 import '../logic/rules.dart';
 import 'database.dart';
 
@@ -70,8 +71,31 @@ class LifeRepo {
   Future<void> setTaskDone(String id, bool done) async {
     final row = await task(id);
     if (row == null || row.isCompleted == done) return;
-    await (db.update(db.tasks)..where((t) => t.id.equals(id)))
-        .write(TasksCompanion(isCompleted: Value(done), updatedAt: Value(DateTime.now())));
+    final now = DateTime.now();
+    await db.transaction(() async {
+      await (db.update(db.tasks)..where((t) => t.id.equals(id)))
+          .write(TasksCompanion(isCompleted: Value(done), updatedAt: Value(now)));
+      if (row.parentId != null) return;
+      if (done) {
+        await db.into(db.taskCompletions).insert(
+              TaskCompletionsCompanion.insert(
+                id: newId(),
+                taskId: id,
+                title: row.title,
+                category: Value(taskCategory(row.project)),
+                completedAt: now,
+              ),
+            );
+      } else {
+        // Undo: drop the latest completion of this task.
+        final last = await (db.select(db.taskCompletions)
+              ..where((c) => c.taskId.equals(id))
+              ..orderBy([(c) => OrderingTerm.desc(c.completedAt)])
+              ..limit(1))
+            .getSingleOrNull();
+        if (last != null) await (db.delete(db.taskCompletions)..where((c) => c.id.equals(last.id))).go();
+      }
+    });
     final updated = await task(id);
     if (updated != null) await reminders.syncTask(updated);
 
@@ -119,6 +143,69 @@ class LifeRepo {
     }
     await (db.delete(db.tasks)..where((t) => t.id.equals(id))).go();
     await reminders.cancelTask(id);
+  }
+
+  /// Deletes a task with its subtasks and returns them, so the delete can be undone with
+  /// [restoreTasks].
+  Future<List<TaskRow>> deleteTaskForUndo(String id) async {
+    final snapshot = <TaskRow>[];
+    Future<void> collect(String taskId) async {
+      final row = await task(taskId);
+      if (row == null) return;
+      snapshot.add(row);
+      final children = await (db.select(db.tasks)..where((t) => t.parentId.equals(taskId))).get();
+      for (final c in children) {
+        await collect(c.id);
+      }
+    }
+
+    await collect(id);
+    await deleteTask(id);
+    return snapshot;
+  }
+
+  /// Puts deleted tasks back exactly as they were, reminders included.
+  Future<void> restoreTasks(List<TaskRow> rows) async {
+    await db.transaction(() async {
+      for (final r in rows) {
+        await db.into(db.tasks).insertOnConflictUpdate(r);
+      }
+    });
+    for (final r in rows) {
+      await reminders.syncTask(r);
+    }
+  }
+
+  /// Creates open tasks with these titles (used by "Turn lines into tasks"). Returns how many.
+  Future<int> createTasks(List<String> titles) async {
+    var n = 0;
+    for (final t in titles) {
+      if (t.trim().isEmpty) continue;
+      await saveTask(TasksCompanion(title: Value(t.trim())));
+      n++;
+    }
+    return n;
+  }
+
+  Stream<List<TaskCompletionRow>> watchCompletions() =>
+      (db.select(db.taskCompletions)..orderBy([(c) => OrderingTerm.desc(c.completedAt)])).watch();
+
+  /// "Mark done" from a reminder notification. Completes the task (a repeating one schedules its
+  /// next round) unless the notification is stale.
+  Future<ReminderOutcome> markDoneFromReminder(String taskId) async {
+    final outcome = reminderOutcome(await task(taskId));
+    if (outcome == ReminderOutcome.apply) await setTaskDone(taskId, true);
+    if (outcome == ReminderOutcome.alreadyDone) await reminders.cancelTask(taskId);
+    return outcome;
+  }
+
+  /// "Snooze 10 min" from a reminder notification: moves the reminder, which reschedules it.
+  Future<ReminderOutcome> snoozeFromReminder(String taskId, DateTime now) async {
+    final outcome = reminderOutcome(await task(taskId));
+    if (outcome == ReminderOutcome.apply) {
+      await saveTask(TasksCompanion(reminderAt: Value(now.add(kSnooze))), id: taskId);
+    }
+    return outcome;
   }
 
   Future<void> addSubtask(String parentId, String title) async {

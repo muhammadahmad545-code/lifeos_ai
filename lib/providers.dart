@@ -21,6 +21,7 @@ final reminderSchedulerProvider = Provider<ReminderScheduler>((ref) => Reminders
 final repoProvider = Provider<LifeRepo>((ref) => LifeRepo(ref.watch(dbProvider), ref.watch(reminderSchedulerProvider)));
 
 final tasksProvider = StreamProvider<List<TaskRow>>((ref) => ref.watch(repoProvider).watchTasks());
+final completionsProvider = StreamProvider<List<TaskCompletionRow>>((ref) => ref.watch(repoProvider).watchCompletions());
 final notesProvider = StreamProvider<List<NoteRow>>((ref) => ref.watch(repoProvider).watchNotes());
 final eventsProvider = StreamProvider<List<CalendarEventRow>>((ref) => ref.watch(repoProvider).watchEvents());
 final habitsProvider = StreamProvider<List<HabitRow>>((ref) => ref.watch(repoProvider).watchHabits());

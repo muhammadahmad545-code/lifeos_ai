@@ -8,6 +8,26 @@ An offline personal organizer for Android, part of the Basalt app suite. Tasks, 
 habits, journal, expenses, goals and a focus timer in one calm app. No account, no cloud: everything
 stays on the phone.
 
+## What's new in 2.2
+
+Everything TaskNote did now lives in Plania:
+
+- **Task categories**: Personal, Work, Grocery, School and General. Pick one in the task editor;
+  the Tasks tab shows each category with its open count and filters by it, together with a
+  filter box. Rows show their category.
+- **Reminder buttons**: reminders have **Mark done** (completes the task, schedules the next round of
+  a repeating one, clears the notification) and **Snooze 10 min**. Both work without opening the
+  app; an old notification for a task that is already done changes nothing. Tapping the reminder
+  opens the task.
+- **Swipe on a task**: right to complete, left to delete. Both have Undo; an undone delete comes back
+  with its subtasks and reminder.
+- **Notes**: Share sends the title, text and checklist to any app. Turn into tasks makes an open task
+  from every line (and every unchecked checklist item), after confirming the count.
+- **Task insights** (chart icon on Tasks, or More): done today, the streak of days with at least one
+  task done, this week's completion rate, overdue tasks, the last 7 days as bars, and open tasks
+  by category. Completed tasks from before 2.2 are counted from their last change. Completion
+  history is in backups; older backups rebuild it on import.
+
 ## What's new in 2.1
 
 - **New logo**: an open planner with spiral rings, a check mark and a bookmark ribbon.
@@ -27,10 +47,12 @@ stays on the phone.
 ## Features
 
 - **Home**: today at a glance. Tasks due today and overdue, habit check-offs, today's events, focus minutes.
-- **Tasks**: due date and time, priority, repeat (daily, weekdays, weekly, monthly, yearly), reminders,
-  subtasks. Open / Today / Upcoming / Done views. Completing a repeating task creates the next one (undo removes it).
+- **Tasks**: categories, due date and time, priority, repeat (daily, weekdays, weekly, monthly, yearly),
+  reminders with Mark done and Snooze, subtasks, swipe to complete or delete with Undo. Open / Today /
+  Upcoming / Done views with category and text filters. Completing a repeating task creates the next one
+  (undo removes it). Task insights.
 - **Reminders**: local notifications with exact alarms when allowed (inexact fallback), restored after a reboot.
-- **Notes**: title, text and checklists, pinning, search.
+- **Notes**: title, text and checklists, pinning, search, share, turn lines into tasks.
 - **Calendar**: month grid with markers, day agenda with events and due tasks, all-day and multi-day events.
 - **Habits**: daily check-offs, current and best streaks, a 7-day strip to fix missed days, pause or delete.
 - **Journal**: entries with a mood.
@@ -72,6 +94,10 @@ The widget, the tile and the shortcuts need no extra permission. Version 2.1 add
   says so and asks you to open the app.
 - A forgotten backup passphrase cannot be recovered. Unencrypted backups are plain JSON that anyone
   with the file can read.
+- Reminder buttons run in the background; if Plania is open at the time, its lists catch up when
+  you return to it.
+- Insights only know when a task was completed from 2.2 on; earlier completions use the time the
+  task was last changed.
 - Adding the tile from Settings needs Android 13+, and pinning the widget depends on the launcher;
   otherwise add them by hand.
 

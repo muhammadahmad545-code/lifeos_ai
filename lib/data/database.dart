@@ -32,6 +32,7 @@ const List<String> _userTables = [
 @DriftDatabase(
   tables: [
     Tasks,
+    TaskCompletions,
     Notes,
     CalendarEvents,
     Habits,
@@ -48,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? driftDatabase(name: 'lifeos_ai'));
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -85,7 +86,23 @@ class AppDatabase extends _$AppDatabase {
             }
             if (!existing.contains('recurring_entries')) await m.createTable(recurringEntries);
           }
+          if (from < 7) {
+            // 2.2: completion history for Task insights, seeded from tasks already done.
+            final existing = await _existingTables();
+            if (!existing.contains('task_completions')) await m.createTable(taskCompletions);
+            if (existing.contains('tasks')) await backfillTaskCompletions();
+          }
         },
+      );
+
+  /// One completion per finished top-level task that has none yet, at its last update time.
+  /// Safe to run twice.
+  Future<void> backfillTaskCompletions() => customStatement(
+        'INSERT OR IGNORE INTO task_completions (id, task_id, title, category, completed_at) '
+        "SELECT 'backfill-' || id, id, title, "
+        "CASE WHEN project IN ('Personal', 'Work', 'Grocery', 'School') THEN project ELSE 'General' END, "
+        'updated_at FROM tasks WHERE is_completed = 1 AND parent_id IS NULL '
+        'AND id NOT IN (SELECT task_id FROM task_completions)',
       );
 
   Future<Set<String>> _existingTables() async {

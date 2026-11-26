@@ -62,6 +62,12 @@ class BackgroundSync {
 
   /// Posts recurring entries that are due, then refreshes the widget.
   Future<void> catchUp() async {
+    // Reminder actions ("Mark done", "Snooze") write from a background isolate that this
+    // connection does not hear about, so re-run the task queries.
+    try {
+      final db = _ref.read(dbProvider);
+      db.markTablesUpdated([db.tasks, db.taskCompletions]);
+    } catch (_) {}
     try {
       await _ref.read(repoProvider).postDueRecurring();
     } catch (_) {}

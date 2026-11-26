@@ -235,3 +235,43 @@ String recurringScheduleLabel(DateTime start, String frequency) {
   final suffix = (d % 100 >= 11 && d % 100 <= 13) ? 'th' : switch (d % 10) { 1 => 'st', 2 => 'nd', 3 => 'rd', _ => 'th' };
   return d >= 29 ? 'Monthly on the $d$suffix (or the last day)' : 'Monthly on the $d$suffix';
 }
+
+// ---------------------------------------------------------------------------
+// Task categories (stored in the task's `project` column)
+// ---------------------------------------------------------------------------
+
+const List<String> kTaskCategories = ['Personal', 'Work', 'Grocery', 'School', 'General'];
+const String kDefaultCategory = 'General';
+
+/// The category of a task: its `project` when that is one of [kTaskCategories], otherwise General
+/// (null, and free-form 1.x project names).
+String taskCategory(String? project) =>
+    project != null && kTaskCategories.contains(project) ? project : kDefaultCategory;
+
+// ---------------------------------------------------------------------------
+// Notes to tasks
+// ---------------------------------------------------------------------------
+
+final RegExp _bullet = RegExp(r'^(?:[-*•·]\s+|\[\s?\]\s*|\d+[.)]\s+)');
+
+/// Task titles from a note: every non-empty line of the text (list bullets removed), then every
+/// unchecked checklist item. Duplicates are kept once, in order.
+List<String> noteToTaskTitles(String content, String checklist) {
+  final out = <String>[];
+  void add(String raw) {
+    var t = raw.trim();
+    t = t.replaceFirst(_bullet, '').trim();
+    if (t.isEmpty || out.contains(t)) return;
+    out.add(t.length > 200 ? t.substring(0, 200) : t);
+  }
+
+  for (final line in content.split('\n')) {
+    // Checked-off text lines ("[x] milk") are already done.
+    if (RegExp(r'^\s*\[[xX]\]').hasMatch(line)) continue;
+    add(line);
+  }
+  for (final item in decodeChecklist(checklist)) {
+    if (!item.done) add(item.text);
+  }
+  return out;
+}

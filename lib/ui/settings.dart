@@ -337,6 +337,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             BListRow(
               icon: Icons.send_outlined,
               title: 'Send a test notification',
+              subtitle: 'Reminders have Mark done and Snooze 10 min buttons',
               onTap: () async {
                 if (await Reminders.instance.ensurePermission()) {
                   await Reminders.instance.showTest();

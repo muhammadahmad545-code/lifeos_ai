@@ -1,6 +1,7 @@
 import 'package:basalt/basalt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../logic/dates.dart';
 import '../logic/rules.dart';
@@ -197,6 +198,41 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
     repo.saveNote(id: n.id, title: title, content: body, checklist: list, pinned: _pinned);
   }
 
+  /// Shares the note as plain text: title, body, then the checklist.
+  Future<void> _share() async {
+    final title = _title.text.trim();
+    final body = _body.text.trim();
+    final items = [
+      for (final i in _items)
+        if (i.controller.text.trim().isNotEmpty) '${i.done ? '[x]' : '[ ]'} ${i.controller.text.trim()}',
+    ];
+    final text = [if (title.isNotEmpty) title, if (body.isNotEmpty) body, if (items.isNotEmpty) items.join('\n')].join('\n\n');
+    if (text.isEmpty) {
+      BToast.show(context, 'Write something to share first');
+      return;
+    }
+    await SharePlus.instance.share(ShareParams(text: text, subject: title.isEmpty ? null : title));
+  }
+
+  /// Every non-empty line, and every unchecked checklist item, becomes an open task.
+  Future<void> _toTasks() async {
+    final titles = noteToTaskTitles(_body.text, _checklist);
+    if (titles.isEmpty) {
+      BToast.show(context, 'No lines or open checklist items to turn into tasks');
+      return;
+    }
+    final n = titles.length;
+    final ok = await bConfirm(
+      context,
+      title: 'Create $n ${n == 1 ? 'task' : 'tasks'}?',
+      message: 'Each line becomes an open task. The note stays as it is.',
+      confirmLabel: 'Create',
+    );
+    if (!ok || !mounted) return;
+    final added = await ref.read(repoProvider).createTasks(titles);
+    if (mounted) BToast.show(context, 'Added $added ${added == 1 ? 'task' : 'tasks'} to Tasks');
+  }
+
   Future<void> _delete() async {
     final ok = await bConfirm(context, title: 'Delete note?', confirmLabel: 'Delete', danger: true);
     if (!ok || !mounted) return;
@@ -229,6 +265,8 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
               color: _pinned ? p.accent : null,
               onPressed: () => setState(() => _pinned = !_pinned),
             ),
+            IconAction(icon: Icons.share_outlined, label: 'Share note', onPressed: _share),
+            IconAction(icon: Icons.playlist_add_check_rounded, label: 'Turn into tasks', onPressed: _toTasks),
             if (widget.note != null) IconAction(icon: Icons.delete_outline_rounded, label: 'Delete note', onPressed: _delete),
             Padding(
               padding: const EdgeInsets.only(right: Gap.sm),

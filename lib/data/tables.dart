@@ -12,6 +12,7 @@ class Tasks extends Table {
   BoolColumn get isCompleted => boolean().withDefault(const Constant(false))();
   DateTimeColumn get dueDate => dateTime().nullable()();
   IntColumn get priority => integer().withDefault(const Constant(1))();
+  // The task category since 2.2 (Personal, Work, Grocery, School); null or anything else is General.
   TextColumn get project => text().nullable()();
   TextColumn get labels => text().withDefault(const Constant(''))();
   TextColumn get parentId => text().nullable()();
@@ -20,6 +21,20 @@ class Tasks extends Table {
   DateTimeColumn get reminderAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// One row per completed task (each round of a repeating task counts). Feeds Task insights.
+/// Undoing a completion removes its row. Added in schema 7.
+@DataClassName('TaskCompletionRow')
+class TaskCompletions extends Table {
+  TextColumn get id => text()();
+  TextColumn get taskId => text()();
+  TextColumn get title => text()();
+  TextColumn get category => text().withDefault(const Constant('General'))();
+  DateTimeColumn get completedAt => dateTime()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

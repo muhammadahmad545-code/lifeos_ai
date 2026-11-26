@@ -16,7 +16,7 @@ Future<void> main() async {
   unawaited(BasaltUpdater.instance.start(owner: 'muhammadahmad545-code', repo: 'plania'));
   final prefs = await SharedPreferences.getInstance();
   final db = AppDatabase();
-  await Reminders.instance.init();
+  await Reminders.instance.init(foreground: true);
 
   runApp(
     ProviderScope(

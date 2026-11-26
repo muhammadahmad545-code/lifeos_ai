@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:basalt/basalt.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
@@ -5,19 +7,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../logic/dates.dart';
 import '../logic/rules.dart';
+import '../logic/tasks_view.dart';
 import '../providers.dart';
 import '../services/reminders.dart';
 import 'common.dart';
+import 'insights.dart';
 import 'search.dart';
 
 /// Subtitle for a task row: due, repeat, reminder and subtask progress.
 String taskSubtitle(TaskRow t, List<TaskRow> subs, DateTime now) {
-  final parts = <String>[];
+  final parts = <String>[if (t.parentId == null) taskCategory(t.project)];
   if (t.dueDate != null) parts.add(fmtDue(t.dueDate!, now: now));
   if (t.recurrence != 'none') parts.add('Repeats ${recurrenceLabel(t.recurrence).toLowerCase()}');
   if (t.reminderAt != null && !t.isCompleted && t.reminderAt!.isAfter(now)) parts.add('Reminder ${fmtTime(t.reminderAt!)}');
   if (subs.isNotEmpty) parts.add('${subs.where((s) => s.isCompleted).length}/${subs.length} subtasks');
-  if (parts.isEmpty && (t.description?.trim().isNotEmpty ?? false)) parts.add(t.description!.trim());
+  if (parts.length <= 1 && (t.description?.trim().isNotEmpty ?? false)) parts.add(t.description!.trim());
   return parts.join(' · ');
 }
 
@@ -32,12 +36,45 @@ Future<void> toggleTask(BuildContext context, WidgetRef ref, TaskRow t) async {
   }
 }
 
+/// A snackbar with Undo that always goes away after a few seconds (snackbars with an action
+/// otherwise stay up while accessibility services run).
+void showUndoSnackBar(ScaffoldMessengerState messenger, String message, Future<void> Function() undo) {
+  messenger.hideCurrentSnackBar();
+  final controller = messenger.showSnackBar(
+    SnackBar(
+      content: Text(message),
+      duration: const Duration(seconds: 6),
+      action: SnackBarAction(label: 'Undo', onPressed: () => unawaited(undo())),
+    ),
+  );
+  Timer(const Duration(seconds: 6), () {
+    try {
+      controller.close();
+    } catch (_) {}
+  });
+}
+
+/// Swipe right: complete (or reopen). Swipe left: delete. Both can be undone.
+Future<void> swipeTask(BuildContext context, WidgetRef ref, TaskRow t, DismissDirection direction) async {
+  final repo = ref.read(repoProvider);
+  final messenger = ScaffoldMessenger.of(context);
+  if (direction == DismissDirection.startToEnd) {
+    final done = !t.isCompleted;
+    await repo.setTaskDone(t.id, done);
+    showUndoSnackBar(messenger, done ? 'Completed "${t.title}"' : 'Reopened "${t.title}"', () => repo.setTaskDone(t.id, !done));
+  } else {
+    final snapshot = await repo.deleteTaskForUndo(t.id);
+    showUndoSnackBar(messenger, 'Deleted "${t.title}"', () => repo.restoreTasks(snapshot));
+  }
+}
+
 /// One task in a list.
 class TaskTile extends ConsumerWidget {
-  const TaskTile({super.key, required this.task, this.subtasks = const []});
+  const TaskTile({super.key, required this.task, this.subtasks = const [], this.swipe = true});
 
   final TaskRow task;
   final List<TaskRow> subtasks;
+  final bool swipe;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -50,7 +87,7 @@ class TaskTile extends ConsumerWidget {
     } else if (!task.isCompleted && task.priority >= 2) {
       badge = BBadge(priorityLabel(task.priority), color: task.priority == 3 ? p.danger : p.warning);
     }
-    return BListRow(
+    final row = BListRow(
       leading: CheckCircle(
         done: task.isCompleted,
         label: task.isCompleted ? 'Reopen ${task.title}' : 'Complete ${task.title}',
@@ -61,8 +98,42 @@ class TaskTile extends ConsumerWidget {
       trailing: badge,
       onTap: () => push(context, TaskEditor(task: task)),
     );
+    if (!swipe) return row;
+    Widget side(Color color, IconData icon, String label, Alignment align) => Container(
+          color: p.soft(color),
+          alignment: align,
+          padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: Gap.sm),
+              Text(label, style: BasaltType.bodyStrong.copyWith(color: color)),
+            ],
+          ),
+        );
+    return Dismissible(
+      key: ValueKey('swipe-${task.id}'),
+      background: side(p.success, task.isCompleted ? Icons.undo_rounded : Icons.check_rounded, task.isCompleted ? 'Reopen' : 'Complete', Alignment.centerLeft),
+      secondaryBackground: side(p.danger, Icons.delete_outline_rounded, 'Delete', Alignment.centerRight),
+      // The change goes to the database and the list updates from it, so the row itself
+      // springs back instead of being removed by the Dismissible.
+      confirmDismiss: (direction) async {
+        await swipeTask(context, ref, task, direction);
+        return false;
+      },
+      child: row,
+    );
   }
 }
+
+IconData categoryIconFor(String c) => switch (c) {
+      'Personal' => Icons.person_outline_rounded,
+      'Work' => Icons.work_outline_rounded,
+      'Grocery' => Icons.local_grocery_store_outlined,
+      'School' => Icons.school_outlined,
+      _ => Icons.label_outline_rounded,
+    };
 
 enum _Filter { open, today, upcoming, done }
 
@@ -75,6 +146,8 @@ class TasksPage extends ConsumerStatefulWidget {
 
 class _TasksPageState extends ConsumerState<TasksPage> {
   _Filter _filter = _Filter.open;
+  String? _category;
+  String _query = '';
 
   int _sort(TaskRow a, TaskRow b) {
     final ad = a.dueDate, bd = b.dueDate;
@@ -94,7 +167,8 @@ class _TasksPageState extends ConsumerState<TasksPage> {
     for (final t in all) {
       if (t.parentId != null) subs.putIfAbsent(t.parentId!, () => []).add(t);
     }
-    final top = all.where((t) => t.parentId == null).toList();
+    final counts = openCountsByCategory(all);
+    final top = filterTasks(all, category: _category, query: _query);
     final open = top.where((t) => !t.isCompleted).toList()..sort(_sort);
     final done = top.where((t) => t.isCompleted).toList()..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
@@ -131,15 +205,31 @@ class _TasksPageState extends ConsumerState<TasksPage> {
         sections.add(group('Completed', done));
     }
     final empty = sections.every((w) => w is SizedBox);
+    final filtered = _category != null || _query.trim().isNotEmpty;
 
     return BPage(
       title: 'Tasks',
       subtitle: open.isEmpty ? 'All clear' : '${open.length} open',
       actions: [
+        IconAction(icon: Icons.insights_rounded, label: 'Insights', onPressed: () => push(context, const InsightsPage())),
         IconAction(icon: Icons.search_rounded, label: 'Search', onPressed: () => push(context, const SearchPage())),
       ],
-      floating: AddButton(label: 'New task', onPressed: () => push(context, const TaskEditor())),
+      floating: AddButton(label: 'New task', onPressed: () => push(context, TaskEditor(initialCategory: _category))),
       children: [
+        ChipWrap(
+          children: [
+            for (final c in [null, ...kTaskCategories])
+              BChip(
+                label: c == null ? 'All ${counts.values.fold<int>(0, (a, b) => a + b)}' : '$c ${counts[c]}',
+                icon: c == null ? Icons.all_inbox_rounded : categoryIconFor(c),
+                selected: _category == c,
+                onTap: () => setState(() => _category = c),
+              ),
+          ],
+        ),
+        const SizedBox(height: Gap.sm),
+        BSearchField(hint: 'Filter tasks', onChanged: (v) => setState(() => _query = v)),
+        const SizedBox(height: Gap.md),
         ChipWrap(
           children: [
             BChip(label: 'Open', selected: _filter == _Filter.open, onTap: () => setState(() => _filter = _Filter.open)),
@@ -155,7 +245,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
         if (empty)
           BEmptyState(
             icon: _filter == _Filter.done ? Icons.task_alt_rounded : Icons.checklist_rounded,
-            title: switch (_filter) {
+            title: filtered ? 'No matching tasks' : switch (_filter) {
               _Filter.done => 'Nothing completed yet',
               _Filter.today => 'Nothing due today',
               _Filter.upcoming => 'Nothing coming up',
@@ -174,10 +264,11 @@ class _TasksPageState extends ConsumerState<TasksPage> {
 }
 
 class TaskEditor extends ConsumerStatefulWidget {
-  const TaskEditor({super.key, this.task, this.initialDue});
+  const TaskEditor({super.key, this.task, this.initialDue, this.initialCategory});
 
   final TaskRow? task;
   final DateTime? initialDue;
+  final String? initialCategory;
 
   @override
   ConsumerState<TaskEditor> createState() => _TaskEditorState();
@@ -198,6 +289,7 @@ class _TaskEditorState extends ConsumerState<TaskEditor> {
   TimeOfDay? _time;
   int _priority = 1;
   String _recurrence = 'none';
+  late String _category = taskCategory(widget.task?.project ?? widget.initialCategory);
   int? _reminder;
   DateTime? _customReminder;
   final List<String> _pendingSubs = [];
@@ -282,6 +374,7 @@ class _TaskEditorState extends ConsumerState<TaskEditor> {
         description: Value(notes.isEmpty ? null : notes),
         dueDate: Value(due),
         priority: Value(_priority),
+        project: Value(_projectValue()),
         recurrence: Value(_recurrence),
         isRecurring: Value(_recurrence != 'none'),
         reminderAt: Value(reminderAt),
@@ -295,6 +388,14 @@ class _TaskEditorState extends ConsumerState<TaskEditor> {
     final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
     if (warning != null) messenger.showSnackBar(SnackBar(content: Text(warning)));
+  }
+
+  /// General is stored as null, but a free-form 1.x project name is kept while the category
+  /// stays General.
+  String? _projectValue() {
+    if (_category != kDefaultCategory) return _category;
+    final old = widget.task?.project;
+    return old != null && !kTaskCategories.contains(old) ? old : null;
   }
 
   Future<void> _delete() async {
@@ -347,6 +448,13 @@ class _TaskEditorState extends ConsumerState<TaskEditor> {
           maxLines: 6,
           textCapitalization: TextCapitalization.sentences,
           decoration: const InputDecoration(labelText: 'Notes (optional)'),
+        ),
+        const FieldLabel('Category'),
+        ChipWrap(
+          children: [
+            for (final c in kTaskCategories)
+              BChip(label: c, icon: categoryIconFor(c), selected: _category == c, onTap: () => setState(() => _category = c)),
+          ],
         ),
         const FieldLabel('Due'),
         Row(

@@ -8,6 +8,7 @@ import '../providers.dart';
 import '../services/app_lock.dart';
 import '../services/background_sync.dart';
 import '../services/quick_access.dart';
+import '../services/reminders.dart';
 import 'calendar.dart';
 import 'common.dart';
 import 'focus.dart';
@@ -39,7 +40,12 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
       unawaited(QuickAccess.installShortcuts());
       unawaited(ref.read(backgroundSyncProvider).catchUp());
       final a = await QuickAccess.takeAction();
-      if (a != null) _open(a);
+      if (a != null) {
+        _open(a);
+      } else {
+        final task = await Reminders.instance.launchTaskId();
+        if (task != null) _open('task:$task');
+      }
     });
   }
 
@@ -56,8 +62,15 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
     if (state == AppLifecycleState.resumed) unawaited(ref.read(backgroundSyncProvider).catchUp());
   }
 
-  void _open(String action) {
+  Future<void> _open(String action) async {
     if (!mounted) return;
+    if (action.startsWith('task:')) {
+      // A tapped reminder: open that task.
+      final task = await ref.read(repoProvider).task(action.substring(5));
+      if (task == null || !mounted) return;
+      push(context, TaskEditor(task: task));
+      return;
+    }
     switch (action) {
       case QuickAccess.newTask:
         push(context, const TaskEditor());

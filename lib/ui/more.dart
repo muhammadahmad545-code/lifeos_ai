@@ -10,6 +10,7 @@ import 'expenses.dart';
 import 'focus.dart';
 import 'goals.dart';
 import 'habits.dart';
+import 'insights.dart';
 import 'journal.dart';
 import 'search.dart';
 import 'settings.dart';
@@ -67,6 +68,13 @@ class MorePage extends ConsumerWidget {
               subtitle: goals == 0 ? 'Set targets with milestones' : '$goals active',
               chevron: true,
               onTap: () => push(context, const GoalsPage()),
+            ),
+            BListRow(
+              icon: Icons.insights_rounded,
+              title: 'Task insights',
+              subtitle: 'Done today, streak, this week and open tasks by category',
+              chevron: true,
+              onTap: () => push(context, const InsightsPage()),
             ),
             BListRow(
               icon: Icons.timer_outlined,
