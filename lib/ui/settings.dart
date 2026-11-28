@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app.dart';
 import '../data/backup.dart';
 import '../data/backup_crypto.dart';
 import '../logic/dates.dart';
@@ -288,17 +289,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Theme', style: BasaltType.label.copyWith(color: p.textMuted)),
-              const SizedBox(height: Gap.sm),
-              ChipWrap(
-                children: [
-                  for (final (mode, label) in [(ThemeMode.system, 'System'), (ThemeMode.light, 'Light'), (ThemeMode.dark, 'Dark')])
-                    BChip(
-                      label: label,
-                      selected: s.themeMode == mode,
-                      onTap: () => ref.read(settingsProvider.notifier).setThemeMode(mode),
-                    ),
-                ],
+              BListRow(
+                icon: Icons.palette_outlined,
+                title: 'Appearance',
+                subtitle: '${switch (s.themeMode) { ThemeMode.light => 'Light', ThemeMode.dark => 'Dark', _ => 'System' }} theme · colour, font, text size, layout and motion',
+                chevron: true,
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => BasaltAppearanceScreen(
+                    appName: 'Plania',
+                    appAccent: kAccent,
+                    themeMode: s.themeMode,
+                    onThemeMode: (m) => ref.read(settingsProvider.notifier).setThemeMode(m),
+                  ),
+                )),
               ),
               const SizedBox(height: Gap.lg),
               Text('Currency', style: BasaltType.label.copyWith(color: p.textMuted)),

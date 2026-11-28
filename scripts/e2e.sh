@@ -258,3 +258,61 @@ shot e2e-shortcut-focus
 if wait_contains "Pause" 5; then pass "Start focus shortcut starts a session"; else fail "Start focus shortcut starts a session"; fi
 tap_text "Stop"; sleep 1
 alive || fail "app is not running at the end of the end-to-end checks"
+
+# --- Appearance: draft preview, Apply, persistence after restart, reset -----------------------
+read -r AW AH <<<"$(adb shell wm size | grep -o '[0-9]*x[0-9]*' | tail -1 | tr x ' ')"; AH=${AH:-1920}
+# Scroll until an exact label sits in the upper part of the screen (clear of bars), then tap it.
+scroll_tap() {
+  for i in $(seq 1 10); do
+    dump; xy=$(_find exact "$1")
+    if [ -n "$xy" ] && [ "${xy#* }" -lt $((AH*65/100)) ]; then adb shell input tap $xy; echo "tapped '$1' at $xy"; return 0; fi
+    swipe_up
+  done
+  return 1
+}
+is_selected() { dump; python3 - "$1" <<'PY'
+import re, sys, html
+xml = open('/tmp/ui.xml', encoding='utf-8', errors='ignore').read()
+for m in re.finditer(r'<node [^>]*>', xml):
+    n = m.group(0)
+    vals = [html.unescape(v) for v in re.findall(r' (?:text|content-desc)="([^"]*)"', n)]
+    if any(v == sys.argv[1] or sys.argv[1] in v.split('\n') for v in vals):
+        sys.exit(0 if ('selected="true"' in n or 'checked="true"' in n) else 1)
+sys.exit(1)
+PY
+}
+adb shell am force-stop "$PKG"; sleep 2
+launch; sleep 6
+tap_text "Home"; sleep 2
+tap_text "Settings"; sleep 2
+scroll_tap "Appearance"; sleep 3
+expect "Plania, your way" 10 "Appearance screen opens with a live preview"
+shot e2e-appearance
+scroll_tap "Teal accent"; sleep 1
+scroll_tap "Manrope font"; sleep 1
+scroll_tap "Cool background"; sleep 1
+scroll_tap "Glass"; sleep 1
+scroll_tap "Floating"; sleep 1
+shot e2e-appearance-draft
+expect "Apply" 5 "changes wait for Apply"
+tap_text "Apply"; sleep 2
+expect_not "Discard" 2 "Apply saves the draft"
+back; back
+shot e2e-appearance-applied
+adb shell am force-stop "$PKG"; sleep 2
+launch; sleep 6
+shot e2e-appearance-after-restart
+tap_text "Home"; sleep 2
+tap_text "Settings"; sleep 2
+scroll_tap "Appearance"; sleep 3
+for i in 1 2 3; do has_text "Teal accent" && break; swipe_up; done
+if is_selected "Teal accent"; then pass "accent choice survives a restart"; else fail "accent choice survives a restart"; fi
+swipe_to "Manrope font" >/dev/null
+if is_selected "Manrope font"; then pass "font choice survives a restart"; else fail "font choice survives a restart"; fi
+scroll_tap "Reset to default"; sleep 1
+tap_text "Apply"; sleep 2
+scroll_top
+for i in 1 2 3; do has_text "Plania accent" && break; swipe_up; done
+if is_selected "Plania accent"; then pass "Reset to default returns to the app colour"; else fail "Reset to default returns to the app colour"; fi
+back
+alive || fail "app died during the appearance checks"

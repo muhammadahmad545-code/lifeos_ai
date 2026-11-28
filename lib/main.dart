@@ -15,6 +15,7 @@ Future<void> main() async {
   QuickAccess.init();
   unawaited(BasaltUpdater.instance.start(owner: 'muhammadahmad545-code', repo: 'plania'));
   final prefs = await SharedPreferences.getInstance();
+  await BasaltAppearanceController.load();
   final db = AppDatabase();
   await Reminders.instance.init(foreground: true);
 

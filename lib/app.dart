@@ -13,17 +13,38 @@ class PlaniaApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(settingsProvider.select((s) => s.themeMode));
-    return MaterialApp(
-      title: 'Plania',
-      debugShowCheckedModeBanner: false,
-      theme: basaltTheme(Brightness.light, kAccent),
-      darkTheme: basaltTheme(Brightness.dark, kAccent),
-      themeMode: mode,
-      // The lock sits above the navigator so it also covers pushed screens.
-      builder: (context, child) => AppLockGate(child: child ?? const SizedBox.shrink()),
-      home: const RootGate(),
+    final look = BasaltAppearanceController.instance;
+    // Settings → Appearance changes rebuild the app straight away, no restart needed.
+    return ListenableBuilder(
+      listenable: look ?? const _Never(),
+      builder: (context, _) {
+        final a = look?.value ?? BasaltAppearance.defaults;
+        final reduce = look?.reduceMotion ?? false;
+        return MaterialApp(
+          title: 'Plania',
+          debugShowCheckedModeBanner: false,
+          theme: basaltTheme(Brightness.light, kAccent, appearance: a, reduceMotion: reduce),
+          darkTheme: basaltTheme(Brightness.dark, kAccent, appearance: a, reduceMotion: reduce),
+          themeMode: mode,
+          // The lock sits above the navigator so it also covers pushed screens.
+          builder: (context, child) {
+            final body = AppLockGate(child: child ?? const SizedBox.shrink());
+            return look == null ? body : look.wrap(context, body);
+          },
+          home: const RootGate(),
+        );
+      },
     );
   }
+}
+
+/// A listenable that never fires, for tests that start the app without loading the appearance.
+class _Never implements Listenable {
+  const _Never();
+  @override
+  void addListener(VoidCallback listener) {}
+  @override
+  void removeListener(VoidCallback listener) {}
 }
 
 /// First run shows the introduction; after that the app opens straight into Home.
