@@ -309,7 +309,7 @@ for i in 1 2 3; do has_text "Teal accent" && break; swipe_up; done
 if is_selected "Teal accent"; then pass "accent choice survives a restart"; else fail "accent choice survives a restart"; fi
 swipe_to "Manrope font" >/dev/null
 if is_selected "Manrope font"; then pass "font choice survives a restart"; else fail "font choice survives a restart"; fi
-scroll_tap "Reset to default"; sleep 1
+scroll_to "Reset to default" >/dev/null; tap_text "Reset to default"; sleep 1
 tap_text "Apply"; sleep 2
 scroll_top
 for i in 1 2 3; do has_text "Plania accent" && break; swipe_up; done
